@@ -63,8 +63,9 @@ protected:
 	{
 		DirectX::XMFLOAT4X4 World;
 		DirectX::XMFLOAT4X4 WorldPrev;
+		float Time;
 		float TimeStep;
-		uint32_t BaseSeed;
+		uint32_t NumParticles;
 		uint32_t NumEmitters;
 	};
 
