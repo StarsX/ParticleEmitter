@@ -23,7 +23,7 @@ ParticleEmitter::ParticleEmitter(uint32_t width, uint32_t height, std::wstring n
 	m_typedUAV(false),
 	m_frameIndex(0),
 	m_showFPS(true),
-	m_isPaused(true),
+	m_isPaused(false),
 	m_tracking(false),
 	m_meshFileName("Media/bunny.obj"),
 	m_meshPosScale(0.0f, 0.0f, 0.0f, 1.0f)
