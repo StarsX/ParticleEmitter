@@ -138,13 +138,12 @@ void Emitter::EmitParticle(const CommandList& commandList, uint32_t numParticles
 	CBEmission cb;
 	cb.World = world;
 	cb.WorldPrev = m_worldPrev;
-	cb.Time = static_cast<float>(m_time);
 	cb.TimeStep = m_timeStep;
-	cb.NumParticles = numParticles;
+	cb.BaseSeed = static_cast<uint32_t>(m_time * numParticles);
 	cb.NumEmitters = m_numEmitters;
 	m_worldPrev = world;
 
-	if (cb.Time <= 0.1f) return;
+	if (cb.BaseSeed <= 0.0) return;
 
 	const DescriptorPool descriptorPools[] =
 	{

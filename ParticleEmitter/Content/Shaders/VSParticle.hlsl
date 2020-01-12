@@ -35,7 +35,7 @@ float4 main(uint vId : SV_VERTEXID) : SV_POSITION
 	particle.Velocity.y -= 9.8 * g_timeStep;
 	particle.Pos += particle.Velocity * g_timeStep;
 	particle.Velocity *= VELOCITY_DECAY;
-	particle.LifeTime += particle.LifeTime < 0.5 ? 0.0 : g_timeStep;
+	particle.LifeTime -= g_timeStep;
 
 	g_rwParticles[vId] = particle;
 

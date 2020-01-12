@@ -33,13 +33,12 @@ cbuffer cbPerObject
 {
 	matrix	g_world;
 	matrix	g_worldPrev;
-	float	g_time;
 	float	g_timeStep;
-	uint	g_numParticles;
+	uint	g_baseSeed;
 	uint	g_numEmitters;
 };
 
-static const float g_baseLife = 2.5f;
+static const float g_baseLife = 2.0f;
 
 //--------------------------------------------------------------------------------------
 // Buffers
@@ -71,13 +70,11 @@ uint rand(inout uint seed, uint offset, uint range)
 [numthreads(64, 1, 1)]
 void main(uint DTid : SV_DispatchThreadID)
 {
-	uint seed = g_time * g_numParticles + DTid;
+	uint seed = g_baseSeed + DTid;
 
 	// Load particle
 	Particle particle = g_rwParticles[DTid];
-	if (g_time * 30000.0 >= (float)DTid && particle.LifeTime < 0.5)
-		particle.LifeTime = g_baseLife + g_numParticles;
-	if (particle.LifeTime < g_baseLife + rand(seed, DTid, 1000) / 1000.0f) return;
+	if (particle.LifeTime > 0.0) return;
 	
 	// Load emitter with a random index
 	const uint emitterIdx = rand(seed, DTid, g_numEmitters);
@@ -95,7 +92,7 @@ void main(uint DTid : SV_DispatchThreadID)
 	// Particle emission
 	particle.Pos = mul(float4(pos, 1.0), g_world).xyz;
 	particle.Velocity = (particle.Pos - mul(float4(pos, 1.0), g_worldPrev).xyz) / g_timeStep;
-	particle.LifeTime = 1.0;
+	particle.LifeTime = g_baseLife + rand(seed, DTid, 1000) / 1000.0f;
 
 	g_rwParticles[DTid] = particle;
 }

@@ -171,8 +171,8 @@ void ParticleEmitter::LoadAssets()
 	m_particle= make_unique<Particle>(m_device);
 	if (!m_particle) ThrowIfFailed(E_FAIL);
 
-	if (!m_particle->Init(m_commandList, 1 << 17, m_descriptorTableCache,
-		Format::B8G8R8A8_UNORM, Format::D24_UNORM_S8_UINT))
+	if (!m_particle->Init(m_commandList, 1 << 16, m_descriptorTableCache,
+		uploaders, Format::B8G8R8A8_UNORM, Format::D24_UNORM_S8_UINT))
 		ThrowIfFailed(E_FAIL);
 
 	m_emitter = make_unique<Emitter>(m_device);

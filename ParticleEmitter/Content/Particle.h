@@ -15,6 +15,7 @@ public:
 
 	bool Init(const XUSG::CommandList& commandList, uint32_t numParticles,
 		std::shared_ptr<XUSG::DescriptorTableCache> descriptorTableCache,
+		std::vector<XUSG::Resource>& uploaders,
 		XUSG::Format rtFormat, XUSG::Format dsFormat);
 	
 	void UpdateFrame(double time, float timeStep, const DirectX::CXMMATRIX viewProj);
@@ -27,8 +28,9 @@ public:
 protected:
 	struct ParticleInfo
 	{
-		DirectX::XMUINT3 Indices;
-		DirectX::XMFLOAT2 Barycoord;
+		DirectX::XMFLOAT3 Pos;
+		DirectX::XMFLOAT3 Velocity;
+		float LifeTime;
 	};
 
 	struct CBPerFrame

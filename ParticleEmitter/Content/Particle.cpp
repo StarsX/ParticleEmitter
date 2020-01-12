@@ -22,7 +22,7 @@ Particle::~Particle()
 
 bool Particle::Init(const CommandList& commandList, uint32_t numParticles,
 	shared_ptr<DescriptorTableCache> descriptorTableCache,
-	Format rtFormat, Format dsFormat)
+	vector<Resource>& uploaders, Format rtFormat, Format dsFormat)
 {
 	m_numParticles = numParticles;
 	m_descriptorTableCache = descriptorTableCache;
@@ -31,6 +31,16 @@ bool Particle::Init(const CommandList& commandList, uint32_t numParticles,
 	N_RETURN(m_particleBuffer.Create(m_device, numParticles, sizeof(ParticleInfo),
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1,
 		nullptr, 1, nullptr, L"ParticleBuffer"), false);
+
+	vector<ParticleInfo> particles(numParticles);
+	for (auto& particle : particles)
+	{
+		particle = {};
+		particle.LifeTime = rand() % numParticles / 10000.0f;
+	}
+	uploaders.emplace_back();
+	m_particleBuffer.Upload(commandList, uploaders.back(), particles.data(),
+		sizeof(ParticleInfo) * numParticles);
 
 	N_RETURN(createPipelineLayouts(), false);
 	N_RETURN(createPipelines(rtFormat, dsFormat), false);
