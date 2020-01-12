@@ -253,7 +253,7 @@ void ParticleEmitter::OnUpdate()
 	const auto view = XMLoadFloat4x4(&m_view);
 	const auto proj = XMLoadFloat4x4(&m_proj);
 	const auto viewProj = view * proj;
-	m_renderer->UpdateFrame(time, m_meshPosScale, viewProj, m_isPaused);
+	m_renderer->UpdateFrame(time, timeStep, m_meshPosScale, viewProj, m_isPaused);
 	m_particle->UpdateFrame(time, timeStep, viewProj);
 	m_emitter->UpdateFrame(time, timeStep);
 }

@@ -42,12 +42,13 @@ bool Renderer::Init(const CommandList& commandList, uint32_t width, uint32_t hei
 	return true;
 }
 
-void Renderer::UpdateFrame(double time, const XMFLOAT4& posScale, CXMMATRIX viewProj, bool isPaused)
+void Renderer::UpdateFrame(double time, float timeStep, const XMFLOAT4& posScale,
+	CXMMATRIX viewProj, bool isPaused)
 {
 	{
 		static auto angle = 0.0f;
-		const auto speed = static_cast<float>(sin(time) * 0.5 + 0.5) + 0.1f;
-		angle += !isPaused ? speed * XM_PI / 180.0f : 0.0f;
+		const auto speed = static_cast<float>(sin(time) * 0.5 + 0.5) * 700.0f + 100.0f;
+		angle += !isPaused ? speed * timeStep * XM_PI / 180.0f : 0.0f;
 		const auto rot = XMMatrixRotationY(angle);
 
 		const auto world = XMMatrixScaling(posScale.w, posScale.w, posScale.w) * rot *

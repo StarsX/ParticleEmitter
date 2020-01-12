@@ -17,7 +17,7 @@ public:
 		std::vector<XUSG::Resource>& uploaders, const char* fileName,
 		XUSG::Format rtFormat, XUSG::Format dsFormat);
 
-	void UpdateFrame(double time, const DirectX::XMFLOAT4& posScale,
+	void UpdateFrame(double time, float timeStep, const DirectX::XMFLOAT4& posScale,
 		DirectX::CXMMATRIX viewProj, bool isPaused);
 	void Render(const XUSG::CommandList& commandList, const XUSG::Descriptor& rtv,
 		const XUSG::Descriptor& dsv);
