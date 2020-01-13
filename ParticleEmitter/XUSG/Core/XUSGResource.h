@@ -289,6 +289,7 @@ namespace XUSG
 		Descriptor GetUAV(uint32_t index = 0) const;
 
 		void* Map(uint32_t descriptorIndex = 0, size_t readBegin = 0, size_t readEnd = 0);
+		void* Map(const Range* pReadRange, uint32_t descriptorIndex = 0);
 		void Unmap();
 
 	protected:

@@ -171,7 +171,7 @@ void* ConstantBuffer::Map(uint32_t cbvIndex)
 	{
 		// Map and initialize the constant buffer. We don't unmap this until the
 		// app closes. Keeping things mapped for the lifetime of the resource is okay.
-		CD3DX12_RANGE readRange(0, 0);	// We do not intend to read from this resource on the CPU.
+		Range readRange(0, 0);	// We do not intend to read from this resource on the CPU.
 		V_RETURN(m_resource->Map(0, &readRange, &m_pDataBegin), cerr, false);
 	}
 
@@ -1734,12 +1734,14 @@ Descriptor RawBuffer::GetUAV(uint32_t index) const
 
 void* RawBuffer::Map(uint32_t descriptorIndex, size_t readBegin, size_t readEnd)
 {
+	return Map(&Range(readBegin, readEnd), descriptorIndex);
+}
+
+void* RawBuffer::Map(const Range* pReadRange, uint32_t descriptorIndex)
+{
+	// Map and initialize the buffer.
 	if (m_pDataBegin == nullptr)
-	{
-		// Map and initialize the buffer.
-		CD3DX12_RANGE readRange(readBegin, readEnd);
-		V_RETURN(m_resource->Map(0, &readRange, &m_pDataBegin), cerr, false);
-	}
+		V_RETURN(m_resource->Map(0, pReadRange, &m_pDataBegin), cerr, false);
 
 	const auto offset = !descriptorIndex ? 0 : m_srvOffsets[descriptorIndex];
 

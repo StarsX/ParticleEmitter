@@ -46,7 +46,7 @@ bool Emitter::Init(const CommandList& commandList, shared_ptr<DescriptorTableCac
 bool Emitter::SetEmitterCount(const CommandList& commandList, RawBuffer& counter,
 	Resource* pEmitterSource)
 {
-	m_numEmitters = *reinterpret_cast<const uint32_t*>(counter.Map(0, 0, 1));
+	m_numEmitters = *reinterpret_cast<const uint32_t*>(counter.Map(nullptr));
 #if defined(_DEBUG)
 	cout << m_numEmitters << endl;
 #endif
@@ -139,7 +139,7 @@ void Emitter::EmitParticle(const CommandList& commandList, uint32_t numParticles
 	cb.World = world;
 	cb.WorldPrev = m_worldPrev;
 	cb.TimeStep = m_timeStep;
-	cb.BaseSeed = static_cast<uint32_t>(m_time * numParticles);
+	cb.BaseSeed = rand();
 	cb.NumEmitters = m_numEmitters;
 	m_worldPrev = world;
 

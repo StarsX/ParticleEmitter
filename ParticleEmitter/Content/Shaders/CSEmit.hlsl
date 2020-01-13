@@ -38,7 +38,7 @@ cbuffer cbPerObject
 	uint	g_numEmitters;
 };
 
-static const float g_baseLife = 2.0f;
+static const float g_fullLife = 2.5f;
 
 //--------------------------------------------------------------------------------------
 // Buffers
@@ -59,25 +59,24 @@ uint rand(inout uint seed)
 	// msvcrt.dll: 77C271EF and     eax, 7FFFh
 	seed = seed * 0x343fd + 0x269ec3;   // a = 214013, b = 2531011
 
-	return (seed >> 0x10) & RAND_MAX;
+	return seed;//(seed >> 0x10) & RAND_MAX;
 }
 
-uint rand(inout uint seed, uint offset, uint range)
+uint rand(uint seed, uint range)
 {
-	return (rand(seed) + offset) % range;
+	return rand(seed) % range;
 }
 
 [numthreads(64, 1, 1)]
 void main(uint DTid : SV_DispatchThreadID)
 {
-	uint seed = g_baseSeed + DTid;
-
 	// Load particle
 	Particle particle = g_rwParticles[DTid];
 	if (particle.LifeTime > 0.0) return;
 	
 	// Load emitter with a random index
-	const uint emitterIdx = rand(seed, DTid, g_numEmitters);
+	const uint seed = g_baseSeed * DTid + DTid;
+	const uint emitterIdx = rand(seed, g_numEmitters);
 	const Emitter emitter = g_roEmitters[emitterIdx];
 	const float3 barycoord = { emitter.Barycoord, 1.0 - (emitter.Barycoord.x + emitter.Barycoord.y) };
 
@@ -92,7 +91,7 @@ void main(uint DTid : SV_DispatchThreadID)
 	// Particle emission
 	particle.Pos = mul(float4(pos, 1.0), g_world).xyz;
 	particle.Velocity = (particle.Pos - mul(float4(pos, 1.0), g_worldPrev).xyz) / g_timeStep;
-	particle.LifeTime = g_baseLife + rand(seed, DTid, 1000) / 1000.0f;
+	particle.LifeTime = g_fullLife;
 
 	g_rwParticles[DTid] = particle;
 }
