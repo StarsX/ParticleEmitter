@@ -31,12 +31,12 @@ uint GroupPrefixSum(uint value, uint GIdx : SV_GroupIndex)
 	// Get wave size and wave index
 	const uint waveSize = WaveGetLaneCount();
 	const uint waveIdx = GIdx / waveSize;
-	// assert(GIdx < waveSize);
+	// assert(waveIdx < waveSize);
 
 	// Calculate for the total sum of the wave
 	if (WaveGetLaneIndex() == waveSize - 1) // Is the last lane
 		// Write the wave total sum to the group shared memory
-		// 14 = sum(8) + value(7)
+		// 15 = sum(8) + value(7)
 		// 21 = sum(11) + value(10)
 		// 13 = sum(5) + value(8)
 		g_waveSums[waveIdx] = sum + value;
@@ -48,7 +48,7 @@ uint GroupPrefixSum(uint value, uint GIdx : SV_GroupIndex)
 	{
 		// Move the previous-round wave total sums into one wave,
 		// and then do per-wave prefix sum
-		// 14 21 13 => 0 14 35
+		// 15 21 13 => 0 15 36
 		const uint value = g_waveSums[GIdx];
 		const uint sum = WavePrefixSum(value);
 
@@ -58,8 +58,8 @@ uint GroupPrefixSum(uint value, uint GIdx : SV_GroupIndex)
 	AllMemoryBarrierWithGroupSync();
 
 	// 0 3 3 8, 0 2 11 11, 0 0 4 5
-	// => (0 + 0) (3 + 0) (3 + 0) (8 + 0), (0 + 14) (2 + 14) (11 + 14) (11 + 14), (0 + 35) (0 + 35) (4 + 35) (5 + 35)
-	// => 0 3 3 8, 14 16 25 25, 35 35 39 40
+	// => (0 + 0) (3 + 0) (3 + 0) (8 + 0), (0 + 15) (2 + 15) (11 + 15) (11 + 15), (0 + 36) (0 + 36) (4 + 36) (5 + 36)
+	// => 0 3 3 8, 15 17 26 26, 36 36 40 41
 	return sum + g_waveSums[waveIdx];
 }
 
