@@ -75,10 +75,23 @@ bool IsSlowestGroup(uint GIdx : SV_GroupIndex)
 }
 
 //--------------------------------------------------------------------------------------
+// The slowest group finished
+//--------------------------------------------------------------------------------------
+void SlowestGroupFinished()
+{
+	++g_rwCounter[0];
+}
+
+void WaitForSlowestGroup()
+{
+	while (g_rwCounter[0] <= g_numGroups);
+}
+
+//--------------------------------------------------------------------------------------
 // 1-pass global prefix-sum for at most 1024 * 1024 uints
 //-------------------------------------------------------------------------------------
 [numthreads(GROUP_SIZE, 1, 1)]
-void main(uint DTid : SV_DispatchThreadID, uint GIdx : SV_GroupIndex)
+void main(uint DTid : SV_DispatchThreadID, uint GIdx : SV_GroupIndex, uint Gid : SV_GroupID)
 {
 	// Per-group prefix sum
 	const uint value = g_rwData[DTid];
@@ -86,11 +99,23 @@ void main(uint DTid : SV_DispatchThreadID, uint GIdx : SV_GroupIndex)
 	g_rwData[DTid] = sum;
 
 	// Leave the slowest group
-	if (!IsSlowestGroup(GIdx)) return;
+	if (IsSlowestGroup(GIdx))
+	{
+		// Load the last value of the group in the previous round
+		const uint value = g_rwData[GROUP_SIZE * (GIdx + 1) - 1];
+		const uint sum = GroupPrefixSum(value, GIdx);
 
-	// Load the last value of the group in the previous round
-	const uint groupLastValue = g_rwData[GROUP_SIZE * (GIdx + 1) - 1];
-	const uint sumGroupLastVal = GroupPrefixSum(value, GIdx);
+		// The first element of each group is always 0,
+		// we can take it up and recover later.
+		g_rwData[GROUP_SIZE * GIdx] = sum;
 
-	g_rwData[DTid] = sum + sumGroupLastVal;
+		// The slowest group finished
+		SlowestGroupFinished();
+	}
+	DeviceMemoryBarrierWithGroupSync();
+	
+	// Wait for the slowest group
+	WaitForSlowestGroup();
+
+	if (GIdx > 0) g_rwData[DTid] += g_rwData[GROUP_SIZE * Gid];
 }
