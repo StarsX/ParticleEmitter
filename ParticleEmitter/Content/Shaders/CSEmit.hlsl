@@ -2,7 +2,7 @@
 // Copyright (c) XU, Tianchen. All rights reserved.
 //--------------------------------------------------------------------------------------
 
-#define RAND_MAX	0x7fffffff;
+#define RAND_MAX	0xffff;
 
 //--------------------------------------------------------------------------------------
 // Structs
@@ -59,12 +59,12 @@ uint rand(inout uint seed)
 	// msvcrt.dll: 77C271EF and     eax, 7FFFh
 	seed = seed * 0x343fd + 0x269ec3;   // a = 214013, b = 2531011
 
-	return seed;//(seed >> 0x10) & RAND_MAX;
+	return (seed >> 0x10) & RAND_MAX;
 }
 
-uint rand(uint seed, uint range)
+uint rand(uint2 seed, uint range)
 {
-	return rand(seed) % range;
+	return (rand(seed.x) | (rand(seed.y) << 16)) % range;
 }
 
 [numthreads(64, 1, 1)]
@@ -75,7 +75,7 @@ void main(uint DTid : SV_DispatchThreadID)
 	if (particle.LifeTime > 0.0) return;
 	
 	// Load emitter with a random index
-	const uint seed = g_baseSeed * DTid + DTid;
+	const uint2 seed = { DTid, g_baseSeed };
 	const uint emitterIdx = rand(seed, g_numEmitters);
 	const Emitter emitter = g_roEmitters[emitterIdx];
 	const float3 barycoord = { emitter.Barycoord, 1.0 - (emitter.Barycoord.x + emitter.Barycoord.y) };

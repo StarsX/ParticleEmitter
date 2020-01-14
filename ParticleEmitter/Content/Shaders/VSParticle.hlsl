@@ -2,7 +2,7 @@
 // Copyright (c) XU, Tianchen. All rights reserved.
 //--------------------------------------------------------------------------------------
 
-#define VELOCITY_DECAY	0.999
+#define VELOCITY_LOSS	1.0
 
 //--------------------------------------------------------------------------------------
 // Structs
@@ -34,7 +34,7 @@ float4 main(uint vId : SV_VERTEXID) : SV_POSITION
 	Particle particle = g_rwParticles[vId];
 	particle.Velocity.y -= 9.8 * g_timeStep;
 	particle.Pos += particle.Velocity * g_timeStep;
-	particle.Velocity *= VELOCITY_DECAY;
+	particle.Velocity *= max(1.0 - VELOCITY_LOSS * g_timeStep, 0.0);
 	particle.LifeTime -= g_timeStep;
 
 	g_rwParticles[vId] = particle;
