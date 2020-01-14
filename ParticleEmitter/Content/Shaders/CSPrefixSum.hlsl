@@ -16,6 +16,7 @@ RWStructuredBuffer<uint> g_rwData;
 RWStructuredBuffer<uint> g_rwCounter;
 
 groupshared uint g_waveSums[64];
+groupshared uint g_counter;
 
 //--------------------------------------------------------------------------------------
 // Per-group prefix sum
@@ -23,7 +24,7 @@ groupshared uint g_waveSums[64];
 uint GroupPrefixSum(uint value, uint GIdx : SV_GroupIndex)
 {
 	// Supposing we have 3 0 5 7, 2 9 0 10, 0 4 1 8 in a group,
-	// wave size = 4
+	// and wave size = 4
 	// Per-wave prefix sum
 	// => 0 3 3 8, 0 2 11 11, 0 0 4 5
 	const uint sum = WavePrefixSum(value);
@@ -68,10 +69,10 @@ uint GroupPrefixSum(uint value, uint GIdx : SV_GroupIndex)
 //--------------------------------------------------------------------------------------
 bool IsSlowestGroup(uint GIdx : SV_GroupIndex)
 {
-	if (GIdx == 0) InterlockedAdd(g_rwCounter[0], 1);
-	DeviceMemoryBarrierWithGroupSync();
+	if (GIdx == 0) InterlockedAdd(g_rwCounter[0], 1, g_counter);
+	AllMemoryBarrierWithGroupSync();
 
-	return g_rwCounter[0] >= g_numGroups;
+	return g_counter + 1 == g_numGroups;
 }
 
 //--------------------------------------------------------------------------------------
@@ -79,7 +80,7 @@ bool IsSlowestGroup(uint GIdx : SV_GroupIndex)
 //--------------------------------------------------------------------------------------
 void SlowestGroupFinished(bool isSlowestGroup, uint GIdx : SV_GroupIndex)
 {
-	if (isSlowestGroup && GIdx == 0) ++g_rwCounter[0];
+	if (isSlowestGroup && GIdx == 0) g_rwCounter[0] = g_numGroups + 1;
 }
 
 void WaitForSlowestGroup()
@@ -107,8 +108,7 @@ void main(uint DTid : SV_DispatchThreadID, uint GIdx : SV_GroupIndex, uint Gid :
 		const uint value = g_rwData[GROUP_SIZE * (GIdx + 1) - 1];
 		const uint sum = GroupPrefixSum(value, GIdx);
 
-		// The first element of each group is always 0,
-		// we can take it up and recover later.
+		// The first element of each group is always 0.
 		g_rwData[GROUP_SIZE * GIdx] = sum;
 	}
 	DeviceMemoryBarrierWithGroupSync();
