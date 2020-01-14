@@ -168,18 +168,11 @@ void ParticleEmitter::LoadAssets()
 		Format::B8G8R8A8_UNORM, Format::D24_UNORM_S8_UINT))
 		ThrowIfFailed(E_FAIL);
 
-	m_particle= make_unique<Particle>(m_device);
-	if (!m_particle) ThrowIfFailed(E_FAIL);
-
-	if (!m_particle->Init(m_commandList, 1 << 16, m_descriptorTableCache,
-		uploaders, Format::B8G8R8A8_UNORM, Format::D24_UNORM_S8_UINT))
-		ThrowIfFailed(E_FAIL);
-
 	m_emitter = make_unique<Emitter>(m_device);
 	if (!m_emitter) ThrowIfFailed(E_FAIL);
 
-	if (!m_emitter->Init(m_commandList, m_descriptorTableCache, uploaders, m_renderer->GetInputLayout(),
-		Format::B8G8R8A8_UNORM, Format::D24_UNORM_S8_UINT))
+	if (!m_emitter->Init(m_commandList, 1 << 16, m_descriptorTableCache, uploaders,
+		m_renderer->GetInputLayout(), Format::B8G8R8A8_UNORM, Format::D24_UNORM_S8_UINT))
 		ThrowIfFailed(E_FAIL);
 
 	m_emitter->Distribute(m_commandList, counter, m_renderer->GetVertexBuffer(),
@@ -254,8 +247,7 @@ void ParticleEmitter::OnUpdate()
 	const auto proj = XMLoadFloat4x4(&m_proj);
 	const auto viewProj = view * proj;
 	m_renderer->UpdateFrame(time, timeStep, m_meshPosScale, viewProj, m_isPaused);
-	m_particle->UpdateFrame(time, timeStep, viewProj);
-	m_emitter->UpdateFrame(time, timeStep);
+	m_emitter->UpdateFrame(time, timeStep, viewProj);
 }
 
 // Render the scene.
@@ -403,10 +395,8 @@ void ParticleEmitter::PopulateCommandList()
 	m_renderer->Render(m_commandList, m_renderTargets[m_frameIndex].GetRTV(), m_depth.GetDSV());
 
 #if 1
-	m_emitter->EmitParticle(m_commandList, m_particle->GetParticleCount(),
-		m_particle->GetParticleBufferUAVTable(), m_renderer->GetWorld());
-
-	m_particle->Render(m_commandList, m_renderTargets[m_frameIndex].GetRTV(), &m_depth.GetDSV());
+	m_emitter->Render(m_commandList, m_renderTargets[m_frameIndex].GetRTV(),
+		&m_depth.GetDSV(), m_renderer->GetWorld());
 #else
 	m_emitter->Visualize(m_commandList, m_renderTargets[m_frameIndex].GetRTV(),
 		&m_depth.GetDSV(), m_renderer->GetWorldViewProj());

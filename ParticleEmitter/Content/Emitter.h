@@ -13,19 +13,21 @@ public:
 	Emitter(const XUSG::Device &device);
 	virtual ~Emitter();
 
-	bool Init(const XUSG::CommandList &commandList,
+	bool Init(const XUSG::CommandList &commandList, uint32_t numParticles,
 		std::shared_ptr<XUSG::DescriptorTableCache> descriptorTableCache,
 		std::vector<XUSG::Resource> &uploaders, const XUSG::InputLayout& inputLayout,
 		XUSG::Format rtFormat, XUSG::Format dsFormat);
 	bool SetEmitterCount(const XUSG::CommandList& commandList, XUSG::RawBuffer& counter,
 		XUSG::Resource* pEmitterSource);
 
-	void UpdateFrame(double time, float timeStep);
+	void UpdateFrame(double time, float timeStep, const DirectX::CXMMATRIX viewProj);
 	void Distribute(const XUSG::CommandList& commandList, const XUSG::RawBuffer& counter,
 		const XUSG::VertexBuffer& vb, const XUSG::IndexBuffer& ib, uint32_t numIndices,
 		float density, float scale);
 	void EmitParticle(const XUSG::CommandList& commandList, uint32_t numParticles,
 		const XUSG::DescriptorTable& uavTable, const DirectX::XMFLOAT4X4& world);
+	void Render(const XUSG::CommandList& commandList, const XUSG::Descriptor& rtv,
+		const XUSG::Descriptor* pDsv, const DirectX::XMFLOAT4X4& world);
 	void Visualize(const XUSG::CommandList& commandList, const XUSG::Descriptor& rtv,
 		const XUSG::Descriptor* pDsv, const DirectX::XMFLOAT4X4& worldViewProj);
 	
@@ -33,6 +35,7 @@ protected:
 	enum PipelineIndex : uint8_t
 	{
 		DISTRIBUTE,
+		PARTICLE,
 		EMISSION,
 		VISUALIZE,
 
@@ -47,8 +50,9 @@ protected:
 
 	enum UAVTable : uint8_t
 	{
-		EMITTER,
-		COUNTER,
+		UAV_TABLE_EMITTER,
+		UAV_TABLE_COUNTER,
+		UAV_TABLE_PARTICLE,
 
 		NUM_UAV_TABLE
 	};
@@ -59,6 +63,13 @@ protected:
 		DirectX::XMFLOAT2 Barycoord;
 	};
 
+	struct ParticleInfo
+	{
+		DirectX::XMFLOAT3 Pos;
+		DirectX::XMFLOAT3 Velocity;
+		float LifeTime;
+	};
+
 	struct CBEmission
 	{
 		DirectX::XMFLOAT4X4 World;
@@ -66,6 +77,12 @@ protected:
 		float TimeStep;
 		uint32_t BaseSeed;
 		uint32_t NumEmitters;
+	};
+
+	struct CBParticle : public CBEmission
+	{
+		uint32_t NumParticles;
+		DirectX::XMFLOAT4X4 ViewProj;
 	};
 
 	bool createPipelineLayouts();
@@ -93,11 +110,8 @@ protected:
 
 	XUSG::RawBuffer			m_counter;
 	XUSG::StructuredBuffer	m_emitterBuffer;
+	XUSG::StructuredBuffer	m_particleBuffer;
 
-	uint32_t				m_numEmitters;
-
-	DirectX::XMFLOAT4X4		m_worldPrev;
-
+	CBParticle				m_cbParticle;
 	double					m_time;
-	float					m_timeStep;
 };

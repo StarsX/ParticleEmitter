@@ -2,7 +2,7 @@
 // Copyright (c) XU, Tianchen. All rights reserved.
 //--------------------------------------------------------------------------------------
 
-#define RAND_MAX	0xffff;
+#define RAND_MAX 0xffff
 
 //--------------------------------------------------------------------------------------
 // Structs
@@ -36,6 +36,8 @@ cbuffer cbPerObject
 	float	g_timeStep;
 	uint	g_baseSeed;
 	uint	g_numEmitters;
+	uint	g_numParticles;
+	matrix	g_viewProj;
 };
 
 static const float g_fullLife = 2.5f;
@@ -67,15 +69,10 @@ uint rand(uint2 seed, uint range)
 	return (rand(seed.x) | (rand(seed.y) << 16)) % range;
 }
 
-[numthreads(64, 1, 1)]
-void main(uint DTid : SV_DispatchThreadID)
+Particle Emit(uint particleId, Particle particle)
 {
-	// Load particle
-	Particle particle = g_rwParticles[DTid];
-	if (particle.LifeTime > 0.0) return;
-	
 	// Load emitter with a random index
-	const uint2 seed = { DTid, g_baseSeed };
+	const uint2 seed = { particleId, g_baseSeed };
 	const uint emitterIdx = rand(seed, g_numEmitters);
 	const Emitter emitter = g_roEmitters[emitterIdx];
 	const float3 barycoord = { emitter.Barycoord, 1.0 - (emitter.Barycoord.x + emitter.Barycoord.y) };
@@ -93,5 +90,16 @@ void main(uint DTid : SV_DispatchThreadID)
 	particle.Velocity = (particle.Pos - mul(float4(pos, 1.0), g_worldPrev).xyz) / g_timeStep;
 	particle.LifeTime = g_fullLife;
 
+	return particle;
+}
+
+[numthreads(64, 1, 1)]
+void main(uint DTid : SV_DispatchThreadID)
+{
+	// Load particle
+	Particle particle = g_rwParticles[DTid];
+	if (particle.LifeTime > 0.0) return;
+	
+	particle = Emit(DTid, particle);
 	g_rwParticles[DTid] = particle;
 }

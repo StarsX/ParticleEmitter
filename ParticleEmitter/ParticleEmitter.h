@@ -14,7 +14,6 @@
 #include "StepTimer.h"
 #include "Renderer.h"
 #include "Emitter.h"
-#include "Particle.h"
 
 using namespace DirectX;
 
@@ -59,7 +58,6 @@ private:
 
 	// App resources.
 	std::unique_ptr<Renderer> m_renderer;
-	std::unique_ptr<Particle> m_particle;
 	std::unique_ptr<Emitter> m_emitter;
 	XUSG::DepthStencil	m_depth;
 	XMFLOAT4X4	m_proj;

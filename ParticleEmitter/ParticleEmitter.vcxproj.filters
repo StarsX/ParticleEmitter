@@ -132,9 +132,6 @@
     <ClInclude Include="Content\Emitter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Content\Particle.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DXFramework.cpp">
@@ -191,9 +188,6 @@
     <ClCompile Include="Content\Emitter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Content\Particle.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="XUSG\Core\XUSGBlend.inl">
@@ -207,6 +201,9 @@
     </None>
     <None Include="XUSG\Core\XUSGSampler.inl">
       <Filter>XUSG\Core\Source Files\Inc</Filter>
+    </None>
+    <None Include="Content\Shaders\Common.hlsli">
+      <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -234,10 +231,19 @@
     <FxCompile Include="Content\Shaders\CSEmit.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Content\Shaders\PSConstColor.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\VSParticleSPH.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
     <FxCompile Include="Content\Shaders\VSParticle.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Content\Shaders\PSConstColor.hlsl">
+    <FxCompile Include="Content\Shaders\CSRearrange.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\CSPrefixSum.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

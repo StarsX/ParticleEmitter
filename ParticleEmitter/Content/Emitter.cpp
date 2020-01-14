@@ -21,9 +21,12 @@ Emitter::~Emitter()
 {
 }
 
-bool Emitter::Init(const CommandList& commandList, shared_ptr<DescriptorTableCache> descriptorTableCache,
-	vector<Resource>& uploaders, const InputLayout& inputLayout, Format rtFormat, Format dsFormat)
+bool Emitter::Init(const CommandList& commandList, uint32_t numParticles,
+	shared_ptr<DescriptorTableCache> descriptorTableCache,
+	vector<Resource>& uploaders, const InputLayout& inputLayout,
+	Format rtFormat, Format dsFormat)
 {
+	m_cbParticle.NumParticles = numParticles;
 	m_descriptorTableCache = descriptorTableCache;
 
 	// Create resources and pipelines
@@ -36,6 +39,20 @@ bool Emitter::Init(const CommandList& commandList, shared_ptr<DescriptorTableCac
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1,
 		nullptr, 1, nullptr, L"EmitterBuffer"), false);
 
+	N_RETURN(m_particleBuffer.Create(m_device, numParticles, sizeof(ParticleInfo),
+		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1,
+		nullptr, 1, nullptr, L"ParticleBuffer"), false);
+
+	vector<ParticleInfo> particles(numParticles);
+	for (auto& particle : particles)
+	{
+		particle = {};
+		particle.LifeTime = rand() % numParticles / 10000.0f;
+	}
+	uploaders.emplace_back();
+	m_particleBuffer.Upload(commandList, uploaders.back(), particles.data(),
+		sizeof(ParticleInfo) * numParticles);
+
 	N_RETURN(createPipelineLayouts(), false);
 	N_RETURN(createPipelines(inputLayout, rtFormat, dsFormat), false);
 	N_RETURN(createDescriptorTables(), false);
@@ -46,9 +63,9 @@ bool Emitter::Init(const CommandList& commandList, shared_ptr<DescriptorTableCac
 bool Emitter::SetEmitterCount(const CommandList& commandList, RawBuffer& counter,
 	Resource* pEmitterSource)
 {
-	m_numEmitters = *reinterpret_cast<const uint32_t*>(counter.Map(nullptr));
+	m_cbParticle.NumEmitters = *reinterpret_cast<const uint32_t*>(counter.Map(nullptr));
 #if defined(_DEBUG)
-	cout << m_numEmitters << endl;
+	cout << m_cbParticle.CbEmission.NumEmitters << endl;
 #endif
 
 	if (pEmitterSource)
@@ -60,7 +77,7 @@ bool Emitter::SetEmitterCount(const CommandList& commandList, RawBuffer& counter
 		*pEmitterSource = m_emitterBuffer.GetResource();
 
 		m_emitterBuffer = StructuredBuffer();
-		N_RETURN(m_emitterBuffer.Create(m_device, m_numEmitters, sizeof(EmitterInfo), ResourceFlag::NONE,
+		N_RETURN(m_emitterBuffer.Create(m_device, m_cbParticle.NumEmitters, sizeof(EmitterInfo), ResourceFlag::NONE,
 			MemoryType::DEFAULT, 1, nullptr, 0, nullptr, L"EmitterBuffer"), false);
 
 		// Set barriers
@@ -69,7 +86,7 @@ bool Emitter::SetEmitterCount(const CommandList& commandList, RawBuffer& counter
 
 		// Copy data
 		commandList.CopyBufferRegion(m_emitterBuffer.GetResource(), 0,
-			*pEmitterSource, 0, sizeof(EmitterInfo) * m_numEmitters);
+			*pEmitterSource, 0, sizeof(EmitterInfo) * m_cbParticle.NumEmitters);
 
 		// Set destination barrier
 		numBarriers = m_emitterBuffer.SetBarrier(barriers, ResourceState::NON_PIXEL_SHADER_RESOURCE);
@@ -92,10 +109,11 @@ bool Emitter::SetEmitterCount(const CommandList& commandList, RawBuffer& counter
 	return true;
 }
 
-void Emitter::UpdateFrame(double time, float timeStep)
+void Emitter::UpdateFrame(double time, float timeStep, const CXMMATRIX viewProj)
 {
 	m_time = time;
-	m_timeStep = timeStep;
+	m_cbParticle.TimeStep = timeStep;
+	XMStoreFloat4x4(&m_cbParticle.ViewProj, XMMatrixTranspose(viewProj));
 }
 
 void Emitter::Distribute(const CommandList& commandList, const RawBuffer& counter,
@@ -118,7 +136,7 @@ void Emitter::Distribute(const CommandList& commandList, const RawBuffer& counte
 
 	// Clear counter
 	uint32_t clear[4] = {};
-	commandList.ClearUnorderedAccessViewUint(m_uavTables[COUNTER],
+	commandList.ClearUnorderedAccessViewUint(m_uavTables[UAV_TABLE_COUNTER],
 		m_counter.GetUAV(), m_counter.GetResource(), clear);
 
 	distribute(commandList, vb, ib, numIndices, density, scale);
@@ -135,15 +153,11 @@ void Emitter::Distribute(const CommandList& commandList, const RawBuffer& counte
 void Emitter::EmitParticle(const CommandList& commandList, uint32_t numParticles,
 	const DescriptorTable& uavTable, const XMFLOAT4X4& world)
 {
-	CBEmission cb;
-	cb.World = world;
-	cb.WorldPrev = m_worldPrev;
-	cb.TimeStep = m_timeStep;
-	cb.BaseSeed = rand();
-	cb.NumEmitters = m_numEmitters;
-	m_worldPrev = world;
+	m_cbParticle.WorldPrev = m_cbParticle.World;
+	m_cbParticle.World = world;
+	m_cbParticle.BaseSeed = rand();
 
-	if (cb.BaseSeed <= 0.0) return;
+	if (m_cbParticle.BaseSeed <= 0.0) return;
 
 	const DescriptorPool descriptorPools[] =
 	{
@@ -156,11 +170,40 @@ void Emitter::EmitParticle(const CommandList& commandList, uint32_t numParticles
 	commandList.SetPipelineState(m_pipelines[EMISSION]);
 
 	// Set descriptor tables
-	commandList.SetCompute32BitConstants(0, SizeOfInUint32(cb), &cb);
+	commandList.SetCompute32BitConstants(0, SizeOfInUint32(CBEmission), &m_cbParticle);
 	commandList.SetComputeDescriptorTable(1, m_srvTable);
 	commandList.SetComputeDescriptorTable(2, uavTable);
 
 	commandList.Dispatch(DIV_UP(numParticles, 64), 1, 1);
+}
+
+void Emitter::Render(const CommandList& commandList, const Descriptor& rtv,
+	const Descriptor* pDsv, const XMFLOAT4X4& world)
+{
+	m_cbParticle.WorldPrev = m_cbParticle.World;
+	m_cbParticle.World = world;
+	m_cbParticle.BaseSeed = rand();
+
+	const DescriptorPool descriptorPools[] =
+	{
+		m_descriptorTableCache->GetDescriptorPool(CBV_SRV_UAV_POOL),
+	};
+	commandList.SetDescriptorPools(static_cast<uint32_t>(size(descriptorPools)), descriptorPools);
+
+	commandList.OMSetRenderTargets(1, &rtv, pDsv);
+
+	// Set pipeline state
+	commandList.SetGraphicsPipelineLayout(m_pipelineLayouts[PARTICLE]);
+	commandList.SetPipelineState(m_pipelines[PARTICLE]);
+
+	commandList.IASetPrimitiveTopology(PrimitiveTopology::POINTLIST);
+
+	// Set descriptor tables
+	commandList.SetGraphics32BitConstants(0, SizeOfInUint32(m_cbParticle), &m_cbParticle);
+	commandList.SetGraphicsDescriptorTable(1, m_srvTable);
+	commandList.SetGraphicsDescriptorTable(2, m_uavTables[UAV_TABLE_PARTICLE]);
+
+	commandList.Draw(m_cbParticle.NumParticles, 1, 0, 0);
 }
 
 void Emitter::Visualize(const CommandList& commandList, const Descriptor& rtv,
@@ -184,7 +227,7 @@ void Emitter::Visualize(const CommandList& commandList, const Descriptor& rtv,
 	commandList.SetGraphics32BitConstants(0, SizeOfInUint32(XMFLOAT4X4), &worldViewProj);
 	commandList.SetGraphicsDescriptorTable(1, m_srvTable);
 
-	commandList.Draw(m_numEmitters, 1, 0, 0);
+	commandList.Draw(m_cbParticle.NumEmitters, 1, 0, 0);
 }
 
 bool Emitter::createPipelineLayouts()
@@ -194,8 +237,21 @@ bool Emitter::createPipelineLayouts()
 		Util::PipelineLayout pipelineLayout;
 		pipelineLayout.SetConstants(0, SizeOfInUint32(XMFLOAT4X4), 0, 0, Shader::Stage::VS);
 		pipelineLayout.SetRange(1, DescriptorType::UAV, 1, 0);
+		pipelineLayout.SetShaderStage(1, Shader::Stage::DS);
 		X_RETURN(m_pipelineLayouts[DISTRIBUTE], pipelineLayout.GetPipelineLayout(m_pipelineLayoutCache,
 			PipelineLayoutFlag::ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT, L"DistributionLayout"), false);
+	}
+
+	// Particle emission and integration
+	{
+		Util::PipelineLayout pipelineLayout;
+		pipelineLayout.SetConstants(0, SizeOfInUint32(CBParticle), 0, 0, Shader::Stage::VS);
+		pipelineLayout.SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorRangeFlag::DATA_STATIC);
+		pipelineLayout.SetRange(2, DescriptorType::UAV, 1, 0, 0);
+		pipelineLayout.SetShaderStage(1, Shader::Stage::VS);
+		pipelineLayout.SetShaderStage(2, Shader::Stage::VS);
+		X_RETURN(m_pipelineLayouts[PARTICLE], pipelineLayout.GetPipelineLayout(m_pipelineLayoutCache,
+			PipelineLayoutFlag::NONE, L"ParticleLayout"), false);
 	}
 
 	// Particle emission
@@ -245,6 +301,22 @@ bool Emitter::createPipelines(const InputLayout& inputLayout, Format rtFormat, F
 		X_RETURN(m_pipelines[DISTRIBUTE], state.GetPipeline(m_graphicsPipelineCache, L"Distribution"), false);
 	}
 
+	// Particle emission and integration
+	N_RETURN(m_shaderPool.CreateShader(Shader::Stage::PS, psIndex, L"PSConstColor.cso"), false);
+	{
+		N_RETURN(m_shaderPool.CreateShader(Shader::Stage::VS, vsIndex, L"VSParticle.cso"), false);
+
+		Graphics::State state;
+		state.SetPipelineLayout(m_pipelineLayouts[PARTICLE]);
+		state.SetShader(Shader::Stage::VS, m_shaderPool.GetShader(Shader::Stage::VS, vsIndex++));
+		state.SetShader(Shader::Stage::PS, m_shaderPool.GetShader(Shader::Stage::PS, psIndex));
+		state.IASetPrimitiveTopologyType(PrimitiveTopologyType::POINT);
+		state.OMSetNumRenderTargets(1);
+		state.OMSetRTVFormat(0, rtFormat);
+		state.OMSetDSVFormat(dsFormat);
+		X_RETURN(m_pipelines[PARTICLE], state.GetPipeline(m_graphicsPipelineCache, L"Particle"), false);
+	}
+
 	// Particle emission
 	{
 		N_RETURN(m_shaderPool.CreateShader(Shader::Stage::CS, csIndex, L"CSEmit.cso"), false);
@@ -258,7 +330,6 @@ bool Emitter::createPipelines(const InputLayout& inputLayout, Format rtFormat, F
 	// Show emitters
 	{
 		N_RETURN(m_shaderPool.CreateShader(Shader::Stage::VS, vsIndex, L"VSShowEmitter.cso"), false);
-		N_RETURN(m_shaderPool.CreateShader(Shader::Stage::PS, psIndex, L"PSConstColor.cso"), false);
 
 		Graphics::State state;
 		state.SetPipelineLayout(m_pipelineLayouts[VISUALIZE]);
@@ -280,12 +351,19 @@ bool Emitter::createDescriptorTables()
 	{
 		Util::DescriptorTable uavTable;
 		uavTable.SetDescriptors(0, 1, &m_emitterBuffer.GetUAV(), TEMPORARY_POOL);
-		X_RETURN(m_uavTables[EMITTER], uavTable.GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		X_RETURN(m_uavTables[UAV_TABLE_EMITTER], uavTable.GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
+
 	{
 		Util::DescriptorTable uavTable;
 		uavTable.SetDescriptors(0, 1, &m_counter.GetUAV(), TEMPORARY_POOL);
-		X_RETURN(m_uavTables[COUNTER], uavTable.GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		X_RETURN(m_uavTables[UAV_TABLE_COUNTER], uavTable.GetCbvSrvUavTable(*m_descriptorTableCache), false);
+	}
+
+	{
+		Util::DescriptorTable uavTable;
+		uavTable.SetDescriptors(0, 1, &m_particleBuffer.GetUAV());
+		X_RETURN(m_uavTables[UAV_TABLE_PARTICLE], uavTable.GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
 	return true;
@@ -304,7 +382,7 @@ void Emitter::distribute(const CommandList& commandList, const VertexBuffer& vb,
 	scale *= density;
 	const auto transform = XMMatrixTranspose(XMMatrixScaling(scale, scale, scale));
 	commandList.SetGraphics32BitConstants(0, SizeOfInUint32(XMFLOAT4X4), &transform);
-	commandList.SetGraphicsDescriptorTable(1, m_uavTables[EMITTER]);
+	commandList.SetGraphicsDescriptorTable(1, m_uavTables[UAV_TABLE_EMITTER]);
 
 	commandList.IASetVertexBuffers(0, 1, &vb.GetVBV());
 	commandList.IASetIndexBuffer(ib.GetIBV());
