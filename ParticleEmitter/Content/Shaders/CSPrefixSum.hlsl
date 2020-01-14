@@ -77,14 +77,15 @@ bool IsSlowestGroup(uint GIdx : SV_GroupIndex)
 //--------------------------------------------------------------------------------------
 // The slowest group finished
 //--------------------------------------------------------------------------------------
-void SlowestGroupFinished()
+void SlowestGroupFinished(bool isSlowestGroup, uint GIdx : SV_GroupIndex)
 {
-	++g_rwCounter[0];
+	if (isSlowestGroup && GIdx == 0) ++g_rwCounter[0];
 }
 
 void WaitForSlowestGroup()
 {
-	while (g_rwCounter[0] <= g_numGroups);
+	[allow_uav_condition]
+	while (DeviceMemoryBarrier(), g_rwCounter[0] <= g_numGroups);
 }
 
 //--------------------------------------------------------------------------------------
@@ -99,7 +100,8 @@ void main(uint DTid : SV_DispatchThreadID, uint GIdx : SV_GroupIndex, uint Gid :
 	g_rwData[DTid] = sum;
 
 	// Leave the slowest group
-	if (IsSlowestGroup(GIdx))
+	const bool isSlowestGroup = IsSlowestGroup(GIdx);
+	if (isSlowestGroup)
 	{
 		// Load the last value of the group in the previous round
 		const uint value = g_rwData[GROUP_SIZE * (GIdx + 1) - 1];
@@ -108,11 +110,9 @@ void main(uint DTid : SV_DispatchThreadID, uint GIdx : SV_GroupIndex, uint Gid :
 		// The first element of each group is always 0,
 		// we can take it up and recover later.
 		g_rwData[GROUP_SIZE * GIdx] = sum;
-
-		// The slowest group finished
-		SlowestGroupFinished();
 	}
 	DeviceMemoryBarrierWithGroupSync();
+	SlowestGroupFinished(isSlowestGroup, GIdx);
 	
 	// Wait for the slowest group
 	WaitForSlowestGroup();
