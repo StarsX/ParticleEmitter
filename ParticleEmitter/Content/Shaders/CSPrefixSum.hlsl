@@ -91,7 +91,6 @@ void main(uint DTid : SV_DispatchThreadID, uint GIdx : SV_GroupIndex)
 	// Load the last value of the group in the previous round
 	const uint groupLastValue = g_rwData[GROUP_SIZE * (GIdx + 1) - 1];
 	const uint sumGroupLastVal = GroupPrefixSum(value, GIdx);
-	DeviceMemoryBarrierWithGroupSync();
 
 	g_rwData[DTid] = sum + sumGroupLastVal;
 }
