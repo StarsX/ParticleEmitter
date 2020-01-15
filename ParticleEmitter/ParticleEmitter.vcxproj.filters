@@ -58,6 +58,9 @@
     <Filter Include="XUSG\Optional\Source Files">
       <UniqueIdentifier>{012ee3e8-d574-42d8-8d4f-282a32f8d72a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="XUSG\Shaders">
+      <UniqueIdentifier>{55bc6982-7bb6-4687-b240-067b39915fac}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common\d3dx12.h">
@@ -249,8 +252,8 @@
     <FxCompile Include="Content\Shaders\CSRearrange.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Content\Shaders\CSPrefixSum.hlsl">
-      <Filter>Shaders</Filter>
+    <FxCompile Include="XUSG\Shaders\CSPrefixSum.hlsl">
+      <Filter>XUSG\Shaders</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>
