@@ -56,7 +56,7 @@ uint GroupPrefixSum(uint value, uint GIdx : SV_GroupIndex)
 		// Write the prefix-summed total sum of the previous-round wave to the group shared memory
 		g_waveSums[GIdx] = sum;
 	}
-	AllMemoryBarrierWithGroupSync();
+	GroupMemoryBarrierWithGroupSync();
 
 	// 0 3 3 8, 0 2 11 11, 0 0 4 5
 	// => (0 + 0) (3 + 0) (3 + 0) (8 + 0), (0 + 15) (2 + 15) (11 + 15) (11 + 15), (0 + 36) (0 + 36) (4 + 36) (5 + 36)
