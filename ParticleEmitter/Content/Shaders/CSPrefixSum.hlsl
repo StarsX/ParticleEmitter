@@ -13,7 +13,7 @@ const uint g_numGroups;
 // Buffer
 //--------------------------------------------------------------------------------------
 RWStructuredBuffer<uint> g_rwData;
-RWStructuredBuffer<uint> g_rwCounter;
+globallycoherent RWBuffer<uint> g_rwCounter;
 
 groupshared uint g_waveSums[64];
 groupshared uint g_counter;
@@ -98,17 +98,30 @@ void main(uint DTid : SV_DispatchThreadID, uint GIdx : SV_GroupIndex, uint Gid :
 	// Per-group prefix sum
 	const uint value = g_rwData[DTid];
 	const uint sum = GroupPrefixSum(value, GIdx);
-	g_rwData[DTid] = sum;
+
+	// If only one group, done!
+	if (g_numGroups <= 1)
+	{
+		g_rwData[DTid] = sum;
+		return;
+	}
+
+	// The first element of each group is always 0,
+	// so we reserve it for other usage.
+	if (GIdx != 0) g_rwData[DTid] = sum;
+
+	// The first element of each group is always 0,
+	// so we take it up to store the total sum of the group.
+	if (GIdx == GROUP_SIZE - 1)
+		g_rwData[GROUP_SIZE * Gid] = sum + value;
 
 	// Leave the slowest group
 	const bool isSlowestGroup = IsSlowestGroup(GIdx);
 	if (isSlowestGroup)
 	{
-		// Load the last value of the group in the previous round
-		const uint value = g_rwData[GROUP_SIZE * (GIdx + 1) - 1];
+		// Load the total sum of the previous-round group
+		const uint value = g_rwData[GROUP_SIZE * GIdx];
 		const uint sum = GroupPrefixSum(value, GIdx);
-
-		// The first element of each group is always 0.
 		g_rwData[GROUP_SIZE * GIdx] = sum;
 	}
 	DeviceMemoryBarrierWithGroupSync();

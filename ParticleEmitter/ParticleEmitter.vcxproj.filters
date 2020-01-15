@@ -132,6 +132,9 @@
     <ClInclude Include="Content\Emitter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="XUSG\Optional\XUSGComputeUtil.h">
+      <Filter>XUSG\Optional\Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DXFramework.cpp">
@@ -187,6 +190,9 @@
     </ClCompile>
     <ClCompile Include="Content\Emitter.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="XUSG\Optional\XUSGComputeUtil.cpp">
+      <Filter>XUSG\Optional\Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

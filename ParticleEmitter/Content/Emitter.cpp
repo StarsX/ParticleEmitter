@@ -65,7 +65,7 @@ bool Emitter::SetEmitterCount(const CommandList& commandList, RawBuffer& counter
 {
 	m_cbParticle.NumEmitters = *reinterpret_cast<const uint32_t*>(counter.Map(nullptr));
 #if defined(_DEBUG)
-	cout << m_cbParticle.CbEmission.NumEmitters << endl;
+	cout << m_cbParticle.NumEmitters << endl;
 #endif
 
 	if (pEmitterSource)

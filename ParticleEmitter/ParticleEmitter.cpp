@@ -10,6 +10,7 @@
 //*********************************************************
 
 #include "ParticleEmitter.h"
+#include "Optional/XUSGComputeUtil.h"
 
 using namespace std;
 using namespace XUSG;
@@ -175,9 +176,18 @@ void ParticleEmitter::LoadAssets()
 		m_renderer->GetInputLayout(), Format::B8G8R8A8_UNORM, Format::D24_UNORM_S8_UINT))
 		ThrowIfFailed(E_FAIL);
 
+#if defined(_DEBUG)
+	ComputeUtil prefixSumUtil(m_device);
+	prefixSumUtil.SetPrefixSum(m_commandList, m_descriptorTableCache, nullptr, &uploaders);
+#endif
+
 	m_emitter->Distribute(m_commandList, counter, m_renderer->GetVertexBuffer(),
 		m_renderer->GetIndexBuffer(), m_renderer->GetNumIndices(), 32.0f, m_meshPosScale.w);
-	
+
+#if defined(_DEBUG)
+	prefixSumUtil.PrefixSum(m_commandList, 4096);
+#endif
+
 	// Close the command list and execute it to begin the initial GPU setup.
 	ThrowIfFailed(m_commandList.Close());
 	BaseCommandList* ppCommandLists[] = { m_commandList.GetCommandList().get() };
@@ -199,6 +209,10 @@ void ParticleEmitter::LoadAssets()
 		// complete before continuing.
 		WaitForGpu();
 	}
+
+#if defined(_DEBUG)
+	prefixSumUtil.VerifyPrefixSum();
+#endif
 
 	// Shrink memory cost
 	Resource pEmitterSource[1];
