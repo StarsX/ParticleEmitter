@@ -4,38 +4,25 @@
 
 #include "Common.hlsli"
 
-//--------------------------------------------------------------------------------------
-// Structs
-//--------------------------------------------------------------------------------------
-struct Particle
-{
-	float3 Pos;
-	float3 Velocity;
-	float LifeTime;
-};
+#define VOID;
 
 //--------------------------------------------------------------------------------------
 // Buffers
 //--------------------------------------------------------------------------------------
 RWStructuredBuffer<Particle> g_rwParticles;
 StructuredBuffer<Particle> g_roParticles;
-StructuredBuffer<uint> g_roBinAddress;
+StructuredBuffer<uint> g_rwGrid;
 StructuredBuffer<uint> g_roOffsets;
 
 [numthreads(64, 1, 1)]
 void main(uint DTid : SV_DispatchThreadID)
 {
 	// Load particle
-	Particle particle = g_roParticles[DTid];
-	const uint3 gsPos = ToGridSpace(particle.Pos);
-	if (IsOutOfGrid(gsPos)) return;
+	const Particle particle = g_roParticles[DTid];
 
-	// Get bin index
-	const uint offset = g_roOffsets[DTid];
-	const uint binIdx = GetGridBinIndex(gsPos);
+	// Get bin index and particle Id
+	const uint binIdx = GET_CELL_INDEX(binIdx, particle.Pos, VOID);
+	const uint particleId = g_rwGrid[binIdx] + g_roOffsets[DTid];
 
-	// Get base index of the target location
-	const uint baseIdx = g_roBinAddress[binIdx];
-
-	g_rwParticles[baseIdx + offset] = particle;
+	g_rwParticles[particleId] = particle;
 }

@@ -255,5 +255,8 @@
     <FxCompile Include="XUSG\Shaders\CSPrefixSum.hlsl">
       <Filter>XUSG\Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Content\Shaders\CSDensitySPH.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

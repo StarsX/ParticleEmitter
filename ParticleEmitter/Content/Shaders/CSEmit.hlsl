@@ -2,17 +2,9 @@
 // Copyright (c) XU, Tianchen. All rights reserved.
 //--------------------------------------------------------------------------------------
 
-#define RAND_MAX 0xffff
+#include "Common.hlsli"
 
-//--------------------------------------------------------------------------------------
-// Structs
-//--------------------------------------------------------------------------------------
-struct Particle
-{
-	float3 Pos;
-	float3 Velocity;
-	float LifeTime;
-};
+#define RAND_MAX 0xffff
 
 struct Emitter
 {
