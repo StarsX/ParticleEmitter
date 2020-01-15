@@ -2,7 +2,11 @@
 // Copyright (c) XU, Tianchen. All rights reserved.
 //--------------------------------------------------------------------------------------
 
-#define GROUP_SIZE 1024
+#define GROUP_SIZE		1024
+
+// Min and max wave sizes supported
+#define MIN_WAVE_SIZE	32
+#define MAX_WAVE_SIZE	64
 
 //--------------------------------------------------------------------------------------
 // Constant buffer
@@ -15,7 +19,7 @@ const uint g_numGroups;
 RWStructuredBuffer<uint> g_rwData;
 globallycoherent RWBuffer<uint> g_rwCounter;
 
-groupshared uint g_waveSums[64];
+groupshared uint g_waveSums[GROUP_SIZE / MIN_WAVE_SIZE];
 groupshared uint g_counter;
 
 //--------------------------------------------------------------------------------------
@@ -32,6 +36,7 @@ uint GroupPrefixSum(uint value, uint GIdx : SV_GroupIndex)
 	// Get wave size and wave index
 	const uint waveSize = WaveGetLaneCount();
 	const uint waveIdx = GIdx / waveSize;
+	// assert(waveSize >= MIN_WAVE_SIZE && waveSize <= MAX_WAVE_SIZE);
 	// assert(waveIdx < waveSize);
 
 	// Calculate for the total sum of the wave
