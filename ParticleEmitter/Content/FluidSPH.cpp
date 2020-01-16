@@ -23,10 +23,11 @@ FluidSPH::~FluidSPH()
 
 bool FluidSPH::Init(const CommandList& commandList, uint32_t numParticles,
 	shared_ptr<DescriptorTableCache> descriptorTableCache,
-	const StructuredBuffer& sortedParticles, const Descriptor& particleSRV)
+	StructuredBuffer* pParticleBuffers)
 {
 	m_cbSimulation.NumParticles = numParticles;
 	m_descriptorTableCache = descriptorTableCache;
+	m_pParticleBuffers = pParticleBuffers;
 
 	// Create resources
 	N_RETURN(m_gridBuffer.Create(m_device, GRID_SIZE * GRID_SIZE * GRID_SIZE,
@@ -49,9 +50,18 @@ bool FluidSPH::Init(const CommandList& commandList, uint32_t numParticles,
 	// Create pipelines
 	N_RETURN(createPipelineLayouts(), false);
 	N_RETURN(createPipelines(), false);
-	N_RETURN(createDescriptorTables(sortedParticles, particleSRV), false);
+	N_RETURN(createDescriptorTables(), false);
 
 	return true;
+}
+
+void FluidSPH::UpdateFrame()
+{
+	// Set barriers with promotions
+	ResourceBarrier barrier;
+	m_gridBuffer.SetBarrier(&barrier, ResourceState::UNORDERED_ACCESS);
+	m_offsetBuffer.SetBarrier(&barrier, ResourceState::UNORDERED_ACCESS);
+	m_forceBuffer.SetBarrier(&barrier, ResourceState::NON_PIXEL_SHADER_RESOURCE);
 }
 
 const DescriptorTable& FluidSPH::GetBuildGridDescriptorTable() const
@@ -131,8 +141,7 @@ bool FluidSPH::createPipelines()
 	return true;
 }
 
-bool FluidSPH::createDescriptorTables(const StructuredBuffer& sortedParticles,
-	const Descriptor& particleSRV)
+bool FluidSPH::createDescriptorTables()
 {
 	// Create UAV and SRV table for integration
 	{
@@ -141,8 +150,7 @@ bool FluidSPH::createDescriptorTables(const StructuredBuffer& sortedParticles,
 		{
 			m_gridBuffer.GetUAV(),
 			m_offsetBuffer.GetUAV(),
-			m_gridBuffer.GetSRV(),
-			sortedParticles.GetSRV(),
+			m_pParticleBuffers[REARRANGED].GetSRV(),
 			m_forceBuffer.GetSRV()
 		};
 		uavSrvTable.SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
@@ -154,7 +162,7 @@ bool FluidSPH::createDescriptorTables(const StructuredBuffer& sortedParticles,
 		Util::DescriptorTable srvTable;
 		const Descriptor srvs[] =
 		{
-			particleSRV,
+			m_pParticleBuffers[INTEGRATED].GetSRV(),
 			m_gridBuffer.GetSRV(),
 			m_offsetBuffer.GetSRV()
 		};
@@ -166,7 +174,7 @@ bool FluidSPH::createDescriptorTables(const StructuredBuffer& sortedParticles,
 		Util::DescriptorTable srvTable;
 		const Descriptor srvs[] =
 		{
-			sortedParticles.GetSRV(),
+			m_pParticleBuffers[REARRANGED].GetSRV(),
 			m_gridBuffer.GetSRV(),
 			m_densityBuffer.GetSRV()
 		};
@@ -177,7 +185,7 @@ bool FluidSPH::createDescriptorTables(const StructuredBuffer& sortedParticles,
 	// Create UAV tables
 	{
 		Util::DescriptorTable uavTable;
-		uavTable.SetDescriptors(0, 1, &sortedParticles.GetUAV());
+		uavTable.SetDescriptors(0, 1, &m_pParticleBuffers[REARRANGED].GetUAV());
 		X_RETURN(m_uavTables[UAV_TABLE_PARTICLE], uavTable.GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
@@ -194,4 +202,15 @@ bool FluidSPH::createDescriptorTables(const StructuredBuffer& sortedParticles,
 	}
 
 	return true;
+}
+
+void FluidSPH::rearrange(const CommandList& commandList)
+{
+	// Set barriers
+	ResourceBarrier barriers[4];
+	auto numBarriers = m_pParticleBuffers[REARRANGED].SetBarrier(barriers, ResourceState::UNORDERED_ACCESS);
+	numBarriers = m_pParticleBuffers[INTEGRATED].SetBarrier(barriers, ResourceState::NON_PIXEL_SHADER_RESOURCE, numBarriers);
+	numBarriers = m_gridBuffer.SetBarrier(barriers, ResourceState::NON_PIXEL_SHADER_RESOURCE, numBarriers);
+	numBarriers = m_offsetBuffer.SetBarrier(barriers, ResourceState::NON_PIXEL_SHADER_RESOURCE, numBarriers);
+	commandList.Barrier(numBarriers, barriers);
 }

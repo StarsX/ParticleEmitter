@@ -179,8 +179,7 @@ void ParticleEmitter::LoadAssets()
 	// Create fluid simulator
 	m_fluid = make_unique<FluidSPH>(m_device);
 	if (!m_fluid) ThrowIfFailed(E_FAIL);
-	if (!m_fluid->Init(m_commandList, numParticles, m_descriptorTableCache,
-		m_emitter->GetSortedParticleBuffer(), m_emitter->GetParticleBufferSRV()))
+	if (!m_fluid->Init(m_commandList, numParticles, m_descriptorTableCache, m_emitter->GetParticleBuffers()))
 		ThrowIfFailed(E_FAIL);
 
 #if defined(_DEBUG)

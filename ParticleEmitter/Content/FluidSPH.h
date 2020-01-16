@@ -16,15 +16,22 @@ public:
 
 	bool Init(const XUSG::CommandList& commandList, uint32_t numParticles,
 		std::shared_ptr<XUSG::DescriptorTableCache> descriptorTableCache,
-		const XUSG::StructuredBuffer& sortedParticles,
-		const XUSG::Descriptor& particleSRV);
+		XUSG::StructuredBuffer* pParticleBuffers);
 	
-	void UpdateFrame(double time, float timeStep, const DirectX::CXMMATRIX viewProj);
+	void UpdateFrame();
 	void Simulate(const XUSG::CommandList& commandList);
 
 	const XUSG::DescriptorTable& GetBuildGridDescriptorTable() const;
 
 protected:
+	enum ParticleBufferIndex : uint8_t
+	{
+		REARRANGED,
+		INTEGRATED,
+
+		NUM_PARTICLE_BUFFER
+	};
+
 	enum PipelineIndex : uint8_t
 	{
 		REARRANGE,
@@ -70,8 +77,11 @@ protected:
 
 	bool createPipelineLayouts();
 	bool createPipelines();
-	bool createDescriptorTables(const XUSG::StructuredBuffer& sortedParticles,
-		const XUSG::Descriptor& particleSRV);
+	bool createDescriptorTables();
+
+	void rearrange(const XUSG::CommandList& commandList);
+	void density(const XUSG::CommandList& commandList);
+	void force(const XUSG::CommandList& commandList);
 
 	XUSG::Device m_device;
 
@@ -94,6 +104,7 @@ protected:
 	XUSG::TypedBuffer		m_densityBuffer;
 	XUSG::TypedBuffer		m_forceBuffer;
 
+	XUSG::StructuredBuffer*	m_pParticleBuffers;
+
 	CBSimulation			m_cbSimulation;
-	double					m_time;
 };

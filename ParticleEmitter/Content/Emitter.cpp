@@ -52,7 +52,7 @@ bool Emitter::Init(const CommandList& commandList, uint32_t numParticles,
 		particle.LifeTime = rand() % numParticles / 10000.0f;
 	}
 	uploaders.emplace_back();
-	m_particleBuffers[0].Upload(commandList, uploaders.back(), particles.data(),
+	m_particleBuffers[REARRANGED].Upload(commandList, uploaders.back(), particles.data(),
 		sizeof(ParticleInfo) * numParticles);
 
 	N_RETURN(createPipelineLayouts(), false);
@@ -222,6 +222,10 @@ void Emitter::RenderSPH(const CommandList& commandList, const Descriptor& rtv,
 	};
 	commandList.SetDescriptorPools(static_cast<uint32_t>(size(descriptorPools)), descriptorPools);
 
+	// Set barrier with promotion
+	ResourceBarrier barrier;
+	m_particleBuffers[INTEGRATED].SetBarrier(&barrier, ResourceState::UNORDERED_ACCESS);
+
 	commandList.OMSetRenderTargets(1, &rtv, pDsv);
 
 	// Set pipeline state
@@ -263,14 +267,9 @@ void Emitter::Visualize(const CommandList& commandList, const Descriptor& rtv,
 	commandList.Draw(m_cbParticle.NumEmitters, 1, 0, 0);
 }
 
-const StructuredBuffer& Emitter::GetSortedParticleBuffer() const
+StructuredBuffer* Emitter::GetParticleBuffers()
 {
-	return m_particleBuffers[0];
-}
-
-Descriptor Emitter::GetParticleBufferSRV() const
-{
-	return m_particleBuffers[1].GetSRV();
+	return m_particleBuffers;
 }
 
 bool Emitter::createPipelineLayouts()

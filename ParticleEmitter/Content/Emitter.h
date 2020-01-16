@@ -34,10 +34,17 @@ public:
 	void Visualize(const XUSG::CommandList& commandList, const XUSG::Descriptor& rtv,
 		const XUSG::Descriptor* pDsv, const DirectX::XMFLOAT4X4& worldViewProj);
 
-	const XUSG::StructuredBuffer& GetSortedParticleBuffer() const;
-	XUSG::Descriptor GetParticleBufferSRV() const;
+	XUSG::StructuredBuffer* GetParticleBuffers();
 	
 protected:
+	enum ParticleBufferIndex : uint8_t
+	{
+		REARRANGED,
+		INTEGRATED,
+
+		NUM_PARTICLE_BUFFER
+	};
+
 	enum PipelineIndex : uint8_t
 	{
 		DISTRIBUTE,
@@ -118,7 +125,7 @@ protected:
 
 	XUSG::RawBuffer			m_counter;
 	XUSG::StructuredBuffer	m_emitterBuffer;
-	XUSG::StructuredBuffer	m_particleBuffers[2];
+	XUSG::StructuredBuffer	m_particleBuffers[NUM_PARTICLE_BUFFER];
 
 	CBParticle				m_cbParticle;
 	double					m_time;
