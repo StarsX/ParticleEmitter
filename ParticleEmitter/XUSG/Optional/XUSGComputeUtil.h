@@ -11,6 +11,7 @@ namespace XUSG
 	class ComputeUtil
 	{
 	public:
+		ComputeUtil();
 		ComputeUtil(const Device& device);
 		virtual ~ComputeUtil();
 
@@ -19,6 +20,7 @@ namespace XUSG
 			const Descriptor* pBufferView, std::vector<Resource>* pUploaders = nullptr,
 			Format format = Format::R32_UINT, uint32_t maxElementCount = 4096);
 
+		void SetDevice(const Device& device);
 		void PrefixSum(const CommandList& commandList, uint32_t numElements);
 		void VerifyPrefixSum();
 

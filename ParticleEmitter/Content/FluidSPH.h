@@ -16,10 +16,13 @@ public:
 
 	bool Init(const XUSG::CommandList& commandList, uint32_t numParticles,
 		std::shared_ptr<XUSG::DescriptorTableCache> descriptorTableCache,
-		const XUSG::Descriptor& particleUAV);
+		const XUSG::StructuredBuffer& sortedParticles,
+		const XUSG::Descriptor& particleSRV);
 	
 	void UpdateFrame(double time, float timeStep, const DirectX::CXMMATRIX viewProj);
 	void Simulate(const XUSG::CommandList& commandList);
+
+	const XUSG::DescriptorTable& GetBuildGridDescriptorTable() const;
 
 protected:
 	enum PipelineIndex : uint8_t
@@ -46,6 +49,14 @@ protected:
 		NUM_UAV_TABLE
 	};
 
+	enum SRVTable : uint8_t
+	{
+		SRV_TABLE_REARRANGLE,
+		SRV_TABLE_SPH,
+
+		NUM_SRV_TABLE
+	};
+
 	struct CBSimulation
 	{
 		uint32_t NumParticles;
@@ -59,7 +70,8 @@ protected:
 
 	bool createPipelineLayouts();
 	bool createPipelines();
-	bool createDescriptorTables(const XUSG::Descriptor& particleUAV);
+	bool createDescriptorTables(const XUSG::StructuredBuffer& sortedParticles,
+		const XUSG::Descriptor& particleSRV);
 
 	XUSG::Device m_device;
 
@@ -68,11 +80,14 @@ protected:
 	XUSG::PipelineLayoutCache		m_pipelineLayoutCache;
 	std::shared_ptr<XUSG::DescriptorTableCache> m_descriptorTableCache;
 
+	XUSG::ComputeUtil		m_prefixSumUtil;
+
 	XUSG::PipelineLayout	m_pipelineLayouts[NUM_PIPELINE];
 	XUSG::Pipeline			m_pipelines[NUM_PIPELINE];
 
+	XUSG::DescriptorTable	m_uavSrvTable;
 	XUSG::DescriptorTable	m_uavTables[NUM_UAV_TABLE];
-	XUSG::DescriptorTable	m_srvTables;
+	XUSG::DescriptorTable	m_srvTables[NUM_SRV_TABLE];
 
 	XUSG::TypedBuffer		m_gridBuffer;
 	XUSG::TypedBuffer		m_offsetBuffer;

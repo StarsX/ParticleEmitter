@@ -16,7 +16,7 @@ const uint g_numGroups;
 //--------------------------------------------------------------------------------------
 // Buffer
 //--------------------------------------------------------------------------------------
-RWStructuredBuffer<uint> g_rwData;
+RWBuffer<uint> g_rwData;
 globallycoherent RWBuffer<uint> g_rwCounter;
 
 groupshared uint g_waveSums[GROUP_SIZE / MIN_WAVE_SIZE];

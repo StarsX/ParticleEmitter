@@ -28,14 +28,21 @@ public:
 		const XUSG::DescriptorTable& uavTable, const DirectX::XMFLOAT4X4& world);
 	void Render(const XUSG::CommandList& commandList, const XUSG::Descriptor& rtv,
 		const XUSG::Descriptor* pDsv, const DirectX::XMFLOAT4X4& world);
+	void RenderSPH(const XUSG::CommandList& commandList, const XUSG::Descriptor& rtv,
+		const XUSG::Descriptor* pDsv, const XUSG::DescriptorTable& buildGridDescriptorTable,
+		const DirectX::XMFLOAT4X4& world);
 	void Visualize(const XUSG::CommandList& commandList, const XUSG::Descriptor& rtv,
 		const XUSG::Descriptor* pDsv, const DirectX::XMFLOAT4X4& worldViewProj);
+
+	const XUSG::StructuredBuffer& GetSortedParticleBuffer() const;
+	XUSG::Descriptor GetParticleBufferSRV() const;
 	
 protected:
 	enum PipelineIndex : uint8_t
 	{
 		DISTRIBUTE,
 		PARTICLE,
+		PARTICLE_SPH,
 		EMISSION,
 		VISUALIZE,
 
@@ -53,6 +60,7 @@ protected:
 		UAV_TABLE_EMITTER,
 		UAV_TABLE_COUNTER,
 		UAV_TABLE_PARTICLE,
+		UAV_TABLE_PARTICLE1,
 
 		NUM_UAV_TABLE
 	};
@@ -110,7 +118,7 @@ protected:
 
 	XUSG::RawBuffer			m_counter;
 	XUSG::StructuredBuffer	m_emitterBuffer;
-	XUSG::StructuredBuffer	m_particleBuffer;
+	XUSG::StructuredBuffer	m_particleBuffers[2];
 
 	CBParticle				m_cbParticle;
 	double					m_time;

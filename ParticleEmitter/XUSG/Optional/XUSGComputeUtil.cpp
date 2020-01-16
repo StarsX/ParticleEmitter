@@ -3,6 +3,10 @@
 using namespace std;
 using namespace XUSG;
 
+ComputeUtil::ComputeUtil()
+{
+}
+
 ComputeUtil::ComputeUtil(const Device& device) :
 	m_device(device)
 {
@@ -154,6 +158,13 @@ bool ComputeUtil::SetPrefixSum(const CommandList& commandList,
 	}
 
 	return true;
+}
+
+void ComputeUtil::SetDevice(const Device& device)
+{
+	m_device = device;
+	m_computePipelineCache.SetDevice(device);
+	m_pipelineLayoutCache.SetDevice(device);
 }
 
 void ComputeUtil::PrefixSum(const CommandList& commandList, uint32_t numElements)

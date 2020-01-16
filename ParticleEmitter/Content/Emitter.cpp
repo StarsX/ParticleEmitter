@@ -39,9 +39,11 @@ bool Emitter::Init(const CommandList& commandList, uint32_t numParticles,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1,
 		nullptr, 1, nullptr, L"EmitterBuffer"), false);
 
-	N_RETURN(m_particleBuffer.Create(m_device, numParticles, sizeof(ParticleInfo),
-		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1,
-		nullptr, 1, nullptr, L"ParticleBuffer"), false);
+	auto particleBufferIdx = 0ui8;
+	for (auto& particleBuffer : m_particleBuffers)
+		N_RETURN(particleBuffer.Create(m_device, numParticles, sizeof(ParticleInfo),
+			ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1, nullptr, 1,
+			nullptr, (L"ParticleBuffer" + to_wstring(particleBufferIdx++)).c_str()), false);
 
 	vector<ParticleInfo> particles(numParticles);
 	for (auto& particle : particles)
@@ -50,7 +52,7 @@ bool Emitter::Init(const CommandList& commandList, uint32_t numParticles,
 		particle.LifeTime = rand() % numParticles / 10000.0f;
 	}
 	uploaders.emplace_back();
-	m_particleBuffer.Upload(commandList, uploaders.back(), particles.data(),
+	m_particleBuffers[0].Upload(commandList, uploaders.back(), particles.data(),
 		sizeof(ParticleInfo) * numParticles);
 
 	N_RETURN(createPipelineLayouts(), false);
@@ -206,6 +208,37 @@ void Emitter::Render(const CommandList& commandList, const Descriptor& rtv,
 	commandList.Draw(m_cbParticle.NumParticles, 1, 0, 0);
 }
 
+void Emitter::RenderSPH(const CommandList& commandList, const Descriptor& rtv,
+	const Descriptor* pDsv, const DescriptorTable& buildGridDescriptorTable,
+	const XMFLOAT4X4& world)
+{
+	m_cbParticle.WorldPrev = m_cbParticle.World;
+	m_cbParticle.World = world;
+	m_cbParticle.BaseSeed = rand();
+
+	const DescriptorPool descriptorPools[] =
+	{
+		m_descriptorTableCache->GetDescriptorPool(CBV_SRV_UAV_POOL),
+	};
+	commandList.SetDescriptorPools(static_cast<uint32_t>(size(descriptorPools)), descriptorPools);
+
+	commandList.OMSetRenderTargets(1, &rtv, pDsv);
+
+	// Set pipeline state
+	commandList.SetGraphicsPipelineLayout(m_pipelineLayouts[PARTICLE_SPH]);
+	commandList.SetPipelineState(m_pipelines[PARTICLE_SPH]);
+
+	commandList.IASetPrimitiveTopology(PrimitiveTopology::POINTLIST);
+
+	// Set descriptor tables
+	commandList.SetGraphics32BitConstants(0, SizeOfInUint32(m_cbParticle), &m_cbParticle);
+	commandList.SetGraphicsDescriptorTable(1, m_srvTable);
+	commandList.SetGraphicsDescriptorTable(2, m_uavTables[UAV_TABLE_PARTICLE1]);
+	commandList.SetGraphicsDescriptorTable(3, buildGridDescriptorTable);
+
+	commandList.Draw(m_cbParticle.NumParticles, 1, 0, 0);
+}
+
 void Emitter::Visualize(const CommandList& commandList, const Descriptor& rtv,
 	const Descriptor* pDsv, const XMFLOAT4X4& worldViewProj)
 {
@@ -230,9 +263,19 @@ void Emitter::Visualize(const CommandList& commandList, const Descriptor& rtv,
 	commandList.Draw(m_cbParticle.NumEmitters, 1, 0, 0);
 }
 
+const StructuredBuffer& Emitter::GetSortedParticleBuffer() const
+{
+	return m_particleBuffers[0];
+}
+
+Descriptor Emitter::GetParticleBufferSRV() const
+{
+	return m_particleBuffers[1].GetSRV();
+}
+
 bool Emitter::createPipelineLayouts()
 {
-	// Generate uniform distribution
+	// Generate uniformized distribution
 	{
 		Util::PipelineLayout pipelineLayout;
 		pipelineLayout.SetConstants(0, SizeOfInUint32(XMFLOAT4X4), 0, 0, Shader::Stage::VS);
@@ -247,11 +290,26 @@ bool Emitter::createPipelineLayouts()
 		Util::PipelineLayout pipelineLayout;
 		pipelineLayout.SetConstants(0, SizeOfInUint32(CBParticle), 0, 0, Shader::Stage::VS);
 		pipelineLayout.SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorRangeFlag::DATA_STATIC);
-		pipelineLayout.SetRange(2, DescriptorType::UAV, 1, 0, 0);
+		pipelineLayout.SetRange(2, DescriptorType::UAV, 1, 0);
 		pipelineLayout.SetShaderStage(1, Shader::Stage::VS);
 		pipelineLayout.SetShaderStage(2, Shader::Stage::VS);
 		X_RETURN(m_pipelineLayouts[PARTICLE], pipelineLayout.GetPipelineLayout(m_pipelineLayoutCache,
 			PipelineLayoutFlag::NONE, L"ParticleLayout"), false);
+	}
+
+	// Particle emission and integration for SPH
+	{
+		Util::PipelineLayout pipelineLayout;
+		pipelineLayout.SetConstants(0, SizeOfInUint32(CBParticle), 0, 0, Shader::Stage::VS);
+		pipelineLayout.SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorRangeFlag::DATA_STATIC);
+		pipelineLayout.SetRange(2, DescriptorType::UAV, 1, 0);
+		pipelineLayout.SetRange(3, DescriptorType::UAV, 2, 1);
+		pipelineLayout.SetRange(3, DescriptorType::SRV, 2, 2);
+		pipelineLayout.SetShaderStage(1, Shader::Stage::VS);
+		pipelineLayout.SetShaderStage(2, Shader::Stage::VS);
+		pipelineLayout.SetShaderStage(3, Shader::Stage::VS);
+		X_RETURN(m_pipelineLayouts[PARTICLE_SPH], pipelineLayout.GetPipelineLayout(m_pipelineLayoutCache,
+			PipelineLayoutFlag::NONE, L"ParticleSPHLayout"), false);
 	}
 
 	// Particle emission
@@ -259,7 +317,7 @@ bool Emitter::createPipelineLayouts()
 		Util::PipelineLayout pipelineLayout;
 		pipelineLayout.SetConstants(0, SizeOfInUint32(CBEmission), 0, 0, Shader::Stage::CS);
 		pipelineLayout.SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorRangeFlag::DATA_STATIC);
-		pipelineLayout.SetRange(2, DescriptorType::UAV, 1, 0, 0);
+		pipelineLayout.SetRange(2, DescriptorType::UAV, 1, 0);
 		X_RETURN(m_pipelineLayouts[EMISSION], pipelineLayout.GetPipelineLayout(m_pipelineLayoutCache,
 			PipelineLayoutFlag::NONE, L"EmissionLayout"), false);
 	}
@@ -317,6 +375,21 @@ bool Emitter::createPipelines(const InputLayout& inputLayout, Format rtFormat, F
 		X_RETURN(m_pipelines[PARTICLE], state.GetPipeline(m_graphicsPipelineCache, L"Particle"), false);
 	}
 
+	// Particle emission and integration for SPH
+	{
+		N_RETURN(m_shaderPool.CreateShader(Shader::Stage::VS, vsIndex, L"VSParticleSPH.cso"), false);
+
+		Graphics::State state;
+		state.SetPipelineLayout(m_pipelineLayouts[PARTICLE_SPH]);
+		state.SetShader(Shader::Stage::VS, m_shaderPool.GetShader(Shader::Stage::VS, vsIndex++));
+		state.SetShader(Shader::Stage::PS, m_shaderPool.GetShader(Shader::Stage::PS, psIndex));
+		state.IASetPrimitiveTopologyType(PrimitiveTopologyType::POINT);
+		state.OMSetNumRenderTargets(1);
+		state.OMSetRTVFormat(0, rtFormat);
+		state.OMSetDSVFormat(dsFormat);
+		X_RETURN(m_pipelines[PARTICLE_SPH], state.GetPipeline(m_graphicsPipelineCache, L"ParticleSPH"), false);
+	}
+
 	// Particle emission
 	{
 		N_RETURN(m_shaderPool.CreateShader(Shader::Stage::CS, csIndex, L"CSEmit.cso"), false);
@@ -360,10 +433,11 @@ bool Emitter::createDescriptorTables()
 		X_RETURN(m_uavTables[UAV_TABLE_COUNTER], uavTable.GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
+	for (auto i = 0ui8; i < 2; ++i)
 	{
 		Util::DescriptorTable uavTable;
-		uavTable.SetDescriptors(0, 1, &m_particleBuffer.GetUAV());
-		X_RETURN(m_uavTables[UAV_TABLE_PARTICLE], uavTable.GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		uavTable.SetDescriptors(0, 1, &m_particleBuffers[i].GetUAV());
+		X_RETURN(m_uavTables[UAV_TABLE_PARTICLE + i], uavTable.GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
 	return true;

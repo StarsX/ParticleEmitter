@@ -14,6 +14,7 @@
 #include "StepTimer.h"
 #include "Renderer.h"
 #include "Emitter.h"
+#include "FluidSPH.h"
 
 using namespace DirectX;
 
@@ -59,6 +60,7 @@ private:
 	// App resources.
 	std::unique_ptr<Renderer> m_renderer;
 	std::unique_ptr<Emitter> m_emitter;
+	std::unique_ptr<FluidSPH> m_fluid;
 	XUSG::DepthStencil	m_depth;
 	XMFLOAT4X4	m_proj;
 	XMFLOAT4X4	m_view;

@@ -10,7 +10,6 @@
 //*********************************************************
 
 #include "ParticleEmitter.h"
-#include "Optional/XUSGComputeUtil.h"
 
 using namespace std;
 using namespace XUSG;
@@ -162,18 +161,26 @@ void ParticleEmitter::LoadAssets()
 		m_commandAllocators[m_frameIndex], nullptr), ThrowIfFailed(E_FAIL));
 
 	vector<Resource> uploaders(0);
+	// Create renderer
 	m_renderer = make_unique<Renderer>(m_device);
 	if (!m_renderer) ThrowIfFailed(E_FAIL);
-
 	if (!m_renderer->Init(m_commandList, m_width, m_height, uploaders, m_meshFileName.c_str(),
 		Format::B8G8R8A8_UNORM, Format::D24_UNORM_S8_UINT))
 		ThrowIfFailed(E_FAIL);
 
+	// Create emitter
+	const auto numParticles = 1u << 16;
 	m_emitter = make_unique<Emitter>(m_device);
 	if (!m_emitter) ThrowIfFailed(E_FAIL);
-
-	if (!m_emitter->Init(m_commandList, 1 << 16, m_descriptorTableCache, uploaders,
+	if (!m_emitter->Init(m_commandList, numParticles, m_descriptorTableCache, uploaders,
 		m_renderer->GetInputLayout(), Format::B8G8R8A8_UNORM, Format::D24_UNORM_S8_UINT))
+		ThrowIfFailed(E_FAIL);
+
+	// Create fluid simulator
+	m_fluid = make_unique<FluidSPH>(m_device);
+	if (!m_fluid) ThrowIfFailed(E_FAIL);
+	if (!m_fluid->Init(m_commandList, numParticles, m_descriptorTableCache,
+		m_emitter->GetSortedParticleBuffer(), m_emitter->GetParticleBufferSRV()))
 		ThrowIfFailed(E_FAIL);
 
 #if defined(_DEBUG)
