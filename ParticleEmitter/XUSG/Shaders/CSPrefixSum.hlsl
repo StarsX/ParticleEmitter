@@ -104,7 +104,7 @@ void main(uint DTid : SV_DispatchThreadID, uint GIdx : SV_GroupIndex, uint Gid :
 	const uint value = g_rwData[DTid];
 	const uint sum = GroupPrefixSum(value, GIdx);
 
-	// If only one group, done!
+	// If there is only one group, done!
 	if (g_numGroups <= 1)
 	{
 		g_rwData[DTid] = sum;
@@ -112,7 +112,7 @@ void main(uint DTid : SV_DispatchThreadID, uint GIdx : SV_GroupIndex, uint Gid :
 	}
 
 	// The first element of each group is always 0,
-	// so we reserve it for other usage.
+	// so we reserve it for other usages.
 	if (GIdx != 0) g_rwData[DTid] = sum;
 
 	// The first element of each group is always 0,
