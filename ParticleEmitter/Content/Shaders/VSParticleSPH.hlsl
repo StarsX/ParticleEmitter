@@ -12,17 +12,19 @@
 //--------------------------------------------------------------------------------------
 // Buffers
 //--------------------------------------------------------------------------------------
-RWStructuredBuffer<uint> g_rwGrid;
-RWStructuredBuffer<uint> g_rwOffsets;
-StructuredBuffer<Particle> g_roParticles;
+RWBuffer<uint>	g_rwGrid;
+RWBuffer<uint>	g_rwOffsets;
+StructuredBuffer<Particle>	g_roParticles;
+Buffer<float>	g_roForces;
 
 float4 main(uint ParticleId : SV_VERTEXID) : SV_POSITION
 {
 	// Load particle
 	Particle particle = g_roParticles[ParticleId];
+	const float3 acceleration = g_roForces[ParticleId];
 
 	// Update particle
-	const float4 svPos = Update(ParticleId, particle);
+	const float4 svPos = Update(ParticleId, particle, acceleration);
 
 	// Build grid
 	const uint binIdx = GET_CELL_INDEX(binIdx, particle.Pos, svPos);

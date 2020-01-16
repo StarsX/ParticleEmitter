@@ -2,6 +2,8 @@
 // Copyright (c) XU, Tianchen. All rights reserved.
 //--------------------------------------------------------------------------------------
 
+#define GROUND_Y 0.1
+
 // Input control point
 struct HSCtrlPointIn
 {
@@ -28,11 +30,16 @@ struct HSConstDataOut
 #define NUM_CONTROL_POINTS 3
 
 // Patch Constant Function
-HSConstDataOut CalcHSPatchConstants(
-	InputPatch<HSCtrlPointIn, NUM_CONTROL_POINTS> ip,
-	uint patchID : SV_PrimitiveID)
+HSConstDataOut CalcHSPatchConstants(InputPatch<HSCtrlPointIn, NUM_CONTROL_POINTS> ip)
 {
 	HSConstDataOut output;
+
+	if (ip[0].Pos.y <= GROUND_Y || ip[1].Pos.y <= GROUND_Y || ip[2].Pos.y <= GROUND_Y)
+	{
+		output = (HSConstDataOut)0;
+
+		return output;
+	}
 
 	// Compute tangent space
 	float3 e[2];
@@ -79,10 +86,8 @@ HSConstDataOut CalcHSPatchConstants(
 [outputtopology("point")]
 [outputcontrolpoints(3)]
 [patchconstantfunc("CalcHSPatchConstants")]
-HSCtrlPointOut main(
-	InputPatch<HSCtrlPointIn, NUM_CONTROL_POINTS> ip,
-	uint i : SV_OutputControlPointID,
-	uint patchID : SV_PrimitiveID)
+HSCtrlPointOut main(InputPatch<HSCtrlPointIn, NUM_CONTROL_POINTS> ip,
+	uint i : SV_OutputControlPointID)
 {
 	HSCtrlPointOut output;
 

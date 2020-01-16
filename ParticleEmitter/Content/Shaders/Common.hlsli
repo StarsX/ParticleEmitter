@@ -18,18 +18,35 @@ struct Particle
 	float LifeTime;
 };
 
-static float4 g_boundary = { 0.0.xxx, 16.0 };
+static float4 g_boundary = { 0.0.xxx, 3.2 };
 
 //--------------------------------------------------------------------------------------
-// Transform to grid space
+// Transform from simulation space to grid space
 //--------------------------------------------------------------------------------------
-int3 ToGridSpace(float3 pos)
+int3 SimulationToGridSpace(float3 v)
 {
 	const float halfGridSize = GRID_SIZE * 0.5;
-	pos = (pos - g_boundary.xyz) / g_boundary.w; // [-1, 1]
+	v = (v - g_boundary.xyz) / g_boundary.w; // [-1, 1]
 
-	return pos * halfGridSize + halfGridSize;
+	return v * halfGridSize + halfGridSize;
 }
+
+//--------------------------------------------------------------------------------------
+// Transform from world space to simulation space
+//--------------------------------------------------------------------------------------
+float3 WorldToSimulationSpace(float3 v)
+{
+	return v * 0.1;
+}
+
+//--------------------------------------------------------------------------------------
+// Transform from simulation space to world space
+//--------------------------------------------------------------------------------------
+float3 SimulationToWorldSpace(float3 v)
+{
+	return v / 0.1;
+}
+
 
 //--------------------------------------------------------------------------------------
 // Out of grid boundary
@@ -54,5 +71,5 @@ uint GridGetCellIndex(int3 pos)
 //--------------------------------------------------------------------------------------
 uint GridGetCellIndexWithPosition(float3 pos)
 {
-	return GridGetCellIndex(ToGridSpace(pos));
+	return GridGetCellIndex(SimulationToGridSpace(pos));
 }

@@ -11,8 +11,8 @@
 //--------------------------------------------------------------------------------------
 RWStructuredBuffer<Particle> g_rwParticles;
 StructuredBuffer<Particle> g_roParticles;
-StructuredBuffer<uint> g_rwGrid;
-StructuredBuffer<uint> g_roOffsets;
+Buffer<uint> g_roGrid;
+Buffer<uint> g_roOffsets;
 
 [numthreads(64, 1, 1)]
 void main(uint DTid : SV_DispatchThreadID)
@@ -22,7 +22,7 @@ void main(uint DTid : SV_DispatchThreadID)
 
 	// Get bin index and particle Id
 	const uint binIdx = GET_CELL_INDEX(binIdx, particle.Pos, VOID);
-	const uint particleId = g_rwGrid[binIdx] + g_roOffsets[DTid];
+	const uint particleId = g_roGrid[binIdx] + g_roOffsets[DTid];
 
 	g_rwParticles[particleId] = particle;
 }

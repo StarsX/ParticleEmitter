@@ -17,7 +17,7 @@ namespace XUSG
 		bool SetPrefixSum(const CommandList& commandList,
 			std::shared_ptr<DescriptorTableCache> descriptorTableCache,
 			const Descriptor* pBufferView, std::vector<Resource>* pUploaders = nullptr,
-			uint32_t maxElementCount = 4096);
+			Format format = Format::R32_UINT, uint32_t maxElementCount = 4096);
 
 		void PrefixSum(const CommandList& commandList, uint32_t numElements);
 		void VerifyPrefixSum();
@@ -25,7 +25,9 @@ namespace XUSG
 	protected:
 		enum PipelineIndex : uint8_t
 		{
-			PREFIX_SUM,
+			PREFIX_SUM_UINT,
+			PREFIX_SUM_SINT,
+			PREFIX_SUM_FLOAT,
 
 			NUM_PIPELINE
 		};
@@ -46,6 +48,8 @@ namespace XUSG
 
 		Device m_device;
 
+		Format					m_format;
+
 		ShaderPool				m_shaderPool;
 		Compute::PipelineCache	m_computePipelineCache;
 		PipelineLayoutCache		m_pipelineLayoutCache;
@@ -55,11 +59,11 @@ namespace XUSG
 		Pipeline				m_pipelines[NUM_PIPELINE];
 
 		TypedBuffer				m_counter;
-		std::unique_ptr<StructuredBuffer> m_testBuffer;
-		std::unique_ptr<StructuredBuffer> m_readBack;
+		std::unique_ptr<TypedBuffer> m_testBuffer;
+		std::unique_ptr<TypedBuffer> m_readBack;
 
 		DescriptorTable			m_uavTables[NUM_UAV_TABLE];
 
-		std::vector<uint32_t>	m_testData;
+		std::vector<uint8_t>	m_testData;
 	};
 }

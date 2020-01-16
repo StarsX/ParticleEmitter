@@ -138,6 +138,9 @@
     <ClInclude Include="XUSG\Optional\XUSGComputeUtil.h">
       <Filter>XUSG\Optional\Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Content\FluidSPH.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DXFramework.cpp">
@@ -197,6 +200,9 @@
     <ClCompile Include="XUSG\Optional\XUSGComputeUtil.cpp">
       <Filter>XUSG\Optional\Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Content\FluidSPH.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="XUSG\Core\XUSGBlend.inl">
@@ -212,6 +218,9 @@
       <Filter>XUSG\Core\Source Files\Inc</Filter>
     </None>
     <None Include="Content\Shaders\Common.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Content\Shaders\CSSimulation.hlsli">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
@@ -256,6 +265,9 @@
       <Filter>XUSG\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Content\Shaders\CSDensitySPH.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\CSForceSPH.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

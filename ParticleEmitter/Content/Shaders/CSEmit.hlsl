@@ -32,7 +32,7 @@ cbuffer cbPerObject
 	matrix	g_viewProj;
 };
 
-static const float g_fullLife = 2.5f;
+static const float g_fullLife = 1.0;
 
 //--------------------------------------------------------------------------------------
 // Buffers
@@ -78,8 +78,9 @@ Particle Emit(uint particleId, Particle particle)
 	const float3 pos = mul(barycoord, v);
 
 	// Particle emission
-	particle.Pos = mul(float4(pos, 1.0), g_world).xyz;
-	particle.Velocity = (particle.Pos - mul(float4(pos, 1.0), g_worldPrev).xyz) / g_timeStep;
+	const float3 posPrev = WorldToSimulationSpace(mul(float4(pos, 1.0), g_worldPrev).xyz);
+	particle.Pos = WorldToSimulationSpace(mul(float4(pos, 1.0), g_world).xyz);
+	particle.Velocity = (particle.Pos - posPrev) / g_timeStep;
 	particle.LifeTime = g_fullLife;
 
 	return particle;
