@@ -169,7 +169,7 @@ void ParticleEmitter::LoadAssets()
 		ThrowIfFailed(E_FAIL);
 
 	// Create emitter
-	const auto numParticles = 1u << 16;
+	const auto numParticles = 1u << 15;
 	m_emitter = make_unique<Emitter>(m_device);
 	if (!m_emitter) ThrowIfFailed(E_FAIL);
 	if (!m_emitter->Init(m_commandList, numParticles, m_descriptorTableCache, uploaders,
@@ -184,14 +184,15 @@ void ParticleEmitter::LoadAssets()
 
 #if defined(_DEBUG)
 	ComputeUtil prefixSumUtil(m_device);
-	prefixSumUtil.SetPrefixSum(m_commandList, m_descriptorTableCache, nullptr, &uploaders, Format::R32_UINT, 1024 * 4);
+	prefixSumUtil.SetPrefixSum(m_commandList, true, m_descriptorTableCache,
+		nullptr, &uploaders, Format::R32_UINT, 1024 * 5);
 #endif
 
 	m_emitter->Distribute(m_commandList, counter, m_renderer->GetVertexBuffer(),
 		m_renderer->GetIndexBuffer(), m_renderer->GetNumIndices(), 32.0f, m_meshPosScale.w);
 
 #if defined(_DEBUG)
-	prefixSumUtil.PrefixSum(m_commandList, 1024 * 4);
+	prefixSumUtil.PrefixSum(m_commandList);
 #endif
 
 	// Close the command list and execute it to begin the initial GPU setup.

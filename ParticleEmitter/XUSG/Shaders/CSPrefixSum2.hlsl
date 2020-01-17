@@ -2,25 +2,18 @@
 // Copyright (c) XU, Tianchen. All rights reserved.
 //--------------------------------------------------------------------------------------
 
-#include "Common.hlsli"
+#define GROUP_SIZE 1024
 
 //--------------------------------------------------------------------------------------
-// Buffers
+// Buffer
 //--------------------------------------------------------------------------------------
-RWStructuredBuffer<Particle> g_rwParticles;
-StructuredBuffer<Particle> g_roParticles;
-Buffer<uint> g_roGrid;
-Buffer<uint> g_roOffsets;
+RWBuffer<uint> g_rwData;
 
 [numthreads(64, 1, 1)]
 void main(uint DTid : SV_DispatchThreadID)
 {
-	// Load particle
-	const Particle particle = g_roParticles[DTid];
+	const uint gIdx = DTid % GROUP_SIZE;
+	const uint gid = DTid / GROUP_SIZE;
 
-	// Get bin index and particle Id
-	const uint cellIdx = GridGetCellIndexWithPosition(particle.Pos);
-	const uint particleId = g_roGrid[cellIdx] + g_roOffsets[DTid];
-
-	g_rwParticles[particleId] = particle;
+	if (gIdx > 0) g_rwData[DTid] += g_rwData[GROUP_SIZE * gid];
 }

@@ -15,7 +15,7 @@
 RWBuffer<uint>	g_rwGrid;
 RWBuffer<uint>	g_rwOffsets;
 StructuredBuffer<Particle>	g_roParticles;
-Buffer<float>	g_roForces;
+Buffer<float3>	g_roForces;
 
 float4 main(uint ParticleId : SV_VERTEXID) : SV_POSITION
 {

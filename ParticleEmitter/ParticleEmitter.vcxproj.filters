@@ -141,6 +141,9 @@
     <ClInclude Include="Content\FluidSPH.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Content\SharedConst.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DXFramework.cpp">
@@ -269,6 +272,12 @@
     </FxCompile>
     <FxCompile Include="Content\Shaders\CSForceSPH.hlsl">
       <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="XUSG\Shaders\CSPrefixSum2.hlsl">
+      <Filter>XUSG\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="XUSG\Shaders\CSPrefixSum1.hlsl">
+      <Filter>XUSG\Shaders</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

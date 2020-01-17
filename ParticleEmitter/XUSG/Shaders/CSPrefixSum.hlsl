@@ -11,7 +11,11 @@
 //--------------------------------------------------------------------------------------
 // Constant buffer
 //--------------------------------------------------------------------------------------
-const uint g_numGroups;
+cbuffer cb
+{
+	uint g_numGroups;
+	uint g_remainder;
+};
 
 //--------------------------------------------------------------------------------------
 // Buffer
@@ -25,7 +29,7 @@ groupshared uint g_counter;
 //--------------------------------------------------------------------------------------
 // Per-group prefix sum
 //--------------------------------------------------------------------------------------
-uint GroupPrefixSum(uint value, uint GIdx : SV_GroupIndex)
+uint GroupPrefixSum(uint value, uint GIdx : SV_GroupIndex, uint numActiveThreads)
 {
 	// Supposing we have 3 0 5 7, 2 9 0 10, 0 4 1 8 in a group,
 	// and wave size = 4
@@ -38,6 +42,8 @@ uint GroupPrefixSum(uint value, uint GIdx : SV_GroupIndex)
 	const uint waveIdx = GIdx / waveSize;
 	// assert(waveSize >= MIN_WAVE_SIZE && waveSize <= MAX_WAVE_SIZE);
 	// assert(waveIdx < waveSize);
+
+	if (numActiveThreads <= waveSize) return sum;
 
 	// Calculate for the total sum of the wave
 	if (WaveGetLaneIndex() == waveSize - 1) // Is the last lane
@@ -88,6 +94,9 @@ void SlowestGroupFinished(bool isSlowestGroup, uint GIdx : SV_GroupIndex)
 	if (isSlowestGroup && GIdx == 0) g_rwCounter[0] = g_numGroups + 1;
 }
 
+//--------------------------------------------------------------------------------------
+// Wait for the slowest group
+//--------------------------------------------------------------------------------------
 void WaitForSlowestGroup()
 {
 	[allow_uav_condition]
@@ -102,7 +111,8 @@ void main(uint DTid : SV_DispatchThreadID, uint GIdx : SV_GroupIndex, uint Gid :
 {
 	// Per-group prefix sum
 	const uint value = g_rwData[DTid];
-	const uint sum = GroupPrefixSum(value, GIdx);
+	const uint numActiveThreads = Gid + 1 < g_numGroups ? GROUP_SIZE : g_remainder;
+	const uint sum = GroupPrefixSum(value, GIdx, numActiveThreads);
 
 	// If there is only one group, done!
 	if (g_numGroups <= 1)
@@ -126,9 +136,10 @@ void main(uint DTid : SV_DispatchThreadID, uint GIdx : SV_GroupIndex, uint Gid :
 	{
 		// Load the total sum of the previous-round group
 		const uint value = g_rwData[GROUP_SIZE * GIdx];
-		const uint sum = GroupPrefixSum(value, GIdx);
+		const uint sum = GroupPrefixSum(value, GIdx, g_numGroups);
 		g_rwData[GROUP_SIZE * GIdx] = sum;
 	}
+#if !defined(SAFE_PREFIX_SUM) || !SAFE_PREFIX_SUM
 	DeviceMemoryBarrierWithGroupSync();
 	SlowestGroupFinished(isSlowestGroup, GIdx);
 	
@@ -136,4 +147,5 @@ void main(uint DTid : SV_DispatchThreadID, uint GIdx : SV_GroupIndex, uint Gid :
 	WaitForSlowestGroup();
 
 	if (GIdx > 0) g_rwData[DTid] += g_rwData[GROUP_SIZE * Gid];
+#endif
 }

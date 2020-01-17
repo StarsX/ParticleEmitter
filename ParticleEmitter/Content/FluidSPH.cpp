@@ -3,12 +3,13 @@
 //--------------------------------------------------------------------------------------
 
 #include "FluidSPH.h"
-
-#define GRID_SIZE 16
+#include "SharedConst.h"
 
 using namespace std;
 using namespace DirectX;
 using namespace XUSG;
+
+const uint32_t g_gridBufferSize = GRID_SIZE * GRID_SIZE * GRID_SIZE + 1;
 
 FluidSPH::FluidSPH(const Device& device) :
 	m_device(device)
@@ -17,14 +18,10 @@ FluidSPH::FluidSPH(const Device& device) :
 	m_pipelineLayoutCache.SetDevice(device);
 	m_prefixSumUtil.SetDevice(device);
 
-	const float mass = 0.32f;
-	const float viscosity = 0.1f;
-	m_cbSimulation.SmoothRadius = 1.0f / 3.2f;
+	const XMFLOAT4 boundary(BOUNDARY);
+	m_cbSimulation.SmoothRadius = 1.0f / boundary.w;
 	m_cbSimulation.PressureStiffness = 200.0f;
 	m_cbSimulation.RestDensity = 1000.0f;
-	m_cbSimulation.DensityCoef = mass * 315.0f / (64.0f * XM_PI * pow(m_cbSimulation.SmoothRadius, 9.0f));
-	m_cbSimulation.PressureGradCoef = mass * -45.0f / (XM_PI * pow(m_cbSimulation.SmoothRadius, 6.0f));
-	m_cbSimulation.ViscosityLaplaceCoef = mass * viscosity * 45.0f / (XM_PI * pow(m_cbSimulation.SmoothRadius, 6.0f));
 }
 
 FluidSPH::~FluidSPH()
@@ -39,23 +36,30 @@ bool FluidSPH::Init(const CommandList& commandList, uint32_t numParticles,
 	m_descriptorTableCache = descriptorTableCache;
 	m_pParticleBuffers = pParticleBuffers;
 
+	const float mass = 5243.0f / numParticles;
+	const float viscosity = 0.1f;
+	m_cbSimulation.DensityCoef = mass * 315.0f / (64.0f * XM_PI * pow(m_cbSimulation.SmoothRadius, 9.0f));
+	m_cbSimulation.PressureGradCoef = mass * -45.0f / (XM_PI * pow(m_cbSimulation.SmoothRadius, 6.0f));
+	m_cbSimulation.ViscosityLaplaceCoef = mass * viscosity * 45.0f / (XM_PI * pow(m_cbSimulation.SmoothRadius, 6.0f));
+
 	// Create resources
-	N_RETURN(m_gridBuffer.Create(m_device, GRID_SIZE * GRID_SIZE * GRID_SIZE,
+	N_RETURN(m_gridBuffer.Create(m_device, g_gridBufferSize,
 		sizeof(uint32_t), Format::R32_UINT, ResourceFlag::ALLOW_UNORDERED_ACCESS,
 		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, L"GridBuffer"), false);
 
 	N_RETURN(m_offsetBuffer.Create(m_device, numParticles, sizeof(uint32_t),
 		Format::R32_UINT, ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
 		1, nullptr, 1, nullptr, L"OffsetBuffer"), false);
-	N_RETURN(m_densityBuffer.Create(m_device, numParticles, sizeof(uint32_t),
-		Format::R32_UINT, ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
+	N_RETURN(m_densityBuffer.Create(m_device, numParticles, sizeof(uint16_t),
+		Format::R16_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
 		1, nullptr, 1, nullptr, L"DensityBuffer"), false);
-	N_RETURN(m_forceBuffer.Create(m_device, numParticles, sizeof(uint32_t),
-		Format::R32_UINT, ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
+	N_RETURN(m_forceBuffer.Create(m_device, numParticles, sizeof(uint16_t[4]),
+		Format::R16G16B16A16_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
 		1, nullptr, 1, nullptr, L"ForceBuffer"), false);
 
 	// Set prefix sum
-	m_prefixSumUtil.SetPrefixSum(commandList, m_descriptorTableCache, &m_gridBuffer.GetUAV());
+	m_prefixSumUtil.SetPrefixSum(commandList, g_gridBufferSize > 4096,
+		m_descriptorTableCache, &m_gridBuffer);
 
 	// Create pipelines
 	N_RETURN(createPipelineLayouts(), false);
@@ -69,7 +73,6 @@ void FluidSPH::UpdateFrame()
 {
 	// Set barriers with promotions
 	ResourceBarrier barrier;
-	m_gridBuffer.SetBarrier(&barrier, ResourceState::UNORDERED_ACCESS);
 	m_offsetBuffer.SetBarrier(&barrier, ResourceState::UNORDERED_ACCESS);
 	m_forceBuffer.SetBarrier(&barrier, ResourceState::NON_PIXEL_SHADER_RESOURCE);
 }
@@ -77,16 +80,23 @@ void FluidSPH::UpdateFrame()
 void FluidSPH::Simulate(const CommandList& commandList)
 {
 	ResourceBarrier barrier;
-	const auto numBarriers = m_gridBuffer.SetBarrier(&barrier, ResourceState::UNORDERED_ACCESS);
+	auto numBarriers = m_gridBuffer.SetBarrier(&barrier, ResourceState::UNORDERED_ACCESS);
 	commandList.Barrier(numBarriers, &barrier);
 
 	// Prefix sum grid
-	m_prefixSumUtil.PrefixSum(commandList, GRID_SIZE * GRID_SIZE * GRID_SIZE);
+	m_prefixSumUtil.PrefixSum(commandList, g_gridBufferSize);
 
 	// Simulation steps
 	rearrange(commandList); // Sort particles
-	//density(commandList);
-	//force(commandList);
+	density(commandList);
+	force(commandList);
+
+	// Clear grid
+	const uint32_t clear[4] = {};
+	numBarriers = m_gridBuffer.SetBarrier(&barrier, ResourceState::UNORDERED_ACCESS);
+	commandList.Barrier(numBarriers, &barrier);
+	commandList.ClearUnorderedAccessViewUint(m_uavSrvTable, m_gridBuffer.GetUAV(),
+		m_gridBuffer.GetResource(), clear);
 }
 
 const DescriptorTable& FluidSPH::GetBuildGridDescriptorTable() const
@@ -119,9 +129,8 @@ bool FluidSPH::createPipelineLayouts()
 	{
 		Util::PipelineLayout pipelineLayout;
 		pipelineLayout.SetConstants(0, SizeOfInUint32(CBSimulation), 0, 0, Shader::Stage::CS);
-		pipelineLayout.SetRange(1, DescriptorType::SRV, 2, 0);
-		pipelineLayout.SetRange(2, DescriptorType::SRV, 1, 2);
-		pipelineLayout.SetRange(3, DescriptorType::UAV, 1, 0);
+		pipelineLayout.SetRange(1, DescriptorType::SRV, 3, 0);
+		pipelineLayout.SetRange(2, DescriptorType::UAV, 1, 0);
 		X_RETURN(m_pipelineLayouts[FORCE], pipelineLayout.GetPipelineLayout(m_pipelineLayoutCache,
 			PipelineLayoutFlag::NONE, L"ForceLayout"), false);
 	}

@@ -2,7 +2,7 @@
 // Copyright (c) XU, Tianchen. All rights reserved.
 //--------------------------------------------------------------------------------------
 
-#define GRID_SIZE 16
+#include "SharedConst.h"
 
 //--------------------------------------------------------------------------------------
 // Struct
@@ -14,7 +14,7 @@ struct Particle
 	float LifeTime;
 };
 
-static float4 g_boundary = { 0.0.xxx, 3.2 };
+static float4 g_boundary = { BOUNDARY };
 
 //--------------------------------------------------------------------------------------
 // Transform from simulation space to grid space
@@ -48,7 +48,7 @@ float3 SimulationToWorldSpace(float3 v)
 //--------------------------------------------------------------------------------------
 bool IsOutOfGrid(int3 pos)
 {
-	return any(pos < 0) || any(pos >= GRID_SIZE);
+	return any(pos < 0.0) || any(pos >= GRID_SIZE);
 }
 
 //--------------------------------------------------------------------------------------
@@ -65,7 +65,7 @@ uint GridGetCellIndex(int3 pos)
 uint GridGetCellIndexWithPosition(float3 pos)
 {
 	int3 gPos = SimulationToGridSpace(pos);
-	gPos = clamp(gPos, 0.0, GRID_SIZE - 0.0001);
+	//gPos = clamp(gPos, 0.0, GRID_SIZE - 0.0001);
 
-	return GridGetCellIndex(gPos);
+	return IsOutOfGrid(gPos) ? GRID_SIZE * GRID_SIZE * GRID_SIZE : GridGetCellIndex(gPos);
 }
