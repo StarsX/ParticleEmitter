@@ -4,8 +4,6 @@
 
 #include "Common.hlsli"
 
-#define VOID;
-
 //--------------------------------------------------------------------------------------
 // Buffers
 //--------------------------------------------------------------------------------------
@@ -21,8 +19,9 @@ void main(uint DTid : SV_DispatchThreadID)
 	const Particle particle = g_roParticles[DTid];
 
 	// Get bin index and particle Id
-	const uint binIdx = GET_CELL_INDEX(binIdx, particle.Pos, VOID);
-	const uint particleId = g_roGrid[binIdx] + g_roOffsets[DTid];
+	const uint cellIdx = GridGetCellIndexWithPosition(particle.Pos);
+	const uint particleId = g_roGrid[cellIdx] + g_roOffsets[DTid];
 
-	g_rwParticles[particleId] = particle;
+	//g_rwParticles[particleId] = particle;
+	g_rwParticles[DTid] = particle;
 }

@@ -2,11 +2,7 @@
 // Copyright (c) XU, Tianchen. All rights reserved.
 //--------------------------------------------------------------------------------------
 
-#define GRID_SIZE 32
-
-#define GET_CELL_INDEX(i, p, r) \
-	GridGetCellIndexWithPosition(p); \
-	if (i == 0xffffffff) return r
+#define GRID_SIZE 16
 
 //--------------------------------------------------------------------------------------
 // Struct
@@ -47,7 +43,6 @@ float3 SimulationToWorldSpace(float3 v)
 	return v / 0.1;
 }
 
-
 //--------------------------------------------------------------------------------------
 // Out of grid boundary
 //--------------------------------------------------------------------------------------
@@ -61,9 +56,7 @@ bool IsOutOfGrid(int3 pos)
 //--------------------------------------------------------------------------------------
 uint GridGetCellIndex(int3 pos)
 {
-	const int3 strides = int3(1, GRID_SIZE, GRID_SIZE * GRID_SIZE);
-
-	return IsOutOfGrid(pos) ? 0xffffffff : dot(pos, strides);
+	return dot(pos, int3(1, GRID_SIZE, GRID_SIZE * GRID_SIZE));
 }
 
 //--------------------------------------------------------------------------------------
@@ -71,5 +64,8 @@ uint GridGetCellIndex(int3 pos)
 //--------------------------------------------------------------------------------------
 uint GridGetCellIndexWithPosition(float3 pos)
 {
-	return GridGetCellIndex(SimulationToGridSpace(pos));
+	int3 gPos = SimulationToGridSpace(pos);
+	gPos = clamp(gPos, 0.0, GRID_SIZE - 0.0001);
+
+	return GridGetCellIndex(gPos);
 }

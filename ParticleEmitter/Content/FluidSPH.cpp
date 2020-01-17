@@ -4,9 +4,10 @@
 
 #include "FluidSPH.h"
 
-#define GRID_SIZE 32
+#define GRID_SIZE 16
 
 using namespace std;
+using namespace DirectX;
 using namespace XUSG;
 
 FluidSPH::FluidSPH(const Device& device) :
@@ -15,6 +16,15 @@ FluidSPH::FluidSPH(const Device& device) :
 	m_computePipelineCache.SetDevice(device);
 	m_pipelineLayoutCache.SetDevice(device);
 	m_prefixSumUtil.SetDevice(device);
+
+	const float mass = 0.32f;
+	const float viscosity = 0.1f;
+	m_cbSimulation.SmoothRadius = 1.0f / 3.2f;
+	m_cbSimulation.PressureStiffness = 200.0f;
+	m_cbSimulation.RestDensity = 1000.0f;
+	m_cbSimulation.DensityCoef = mass * 315.0f / (64.0f * XM_PI * pow(m_cbSimulation.SmoothRadius, 9.0f));
+	m_cbSimulation.PressureGradCoef = mass * -45.0f / (XM_PI * pow(m_cbSimulation.SmoothRadius, 6.0f));
+	m_cbSimulation.ViscosityLaplaceCoef = mass * viscosity * 45.0f / (XM_PI * pow(m_cbSimulation.SmoothRadius, 6.0f));
 }
 
 FluidSPH::~FluidSPH()
@@ -64,6 +74,21 @@ void FluidSPH::UpdateFrame()
 	m_forceBuffer.SetBarrier(&barrier, ResourceState::NON_PIXEL_SHADER_RESOURCE);
 }
 
+void FluidSPH::Simulate(const CommandList& commandList)
+{
+	ResourceBarrier barrier;
+	const auto numBarriers = m_gridBuffer.SetBarrier(&barrier, ResourceState::UNORDERED_ACCESS);
+	commandList.Barrier(numBarriers, &barrier);
+
+	// Prefix sum grid
+	m_prefixSumUtil.PrefixSum(commandList, GRID_SIZE * GRID_SIZE * GRID_SIZE);
+
+	// Simulation steps
+	rearrange(commandList); // Sort particles
+	//density(commandList);
+	//force(commandList);
+}
+
 const DescriptorTable& FluidSPH::GetBuildGridDescriptorTable() const
 {
 	return m_uavSrvTable;
@@ -74,8 +99,8 @@ bool FluidSPH::createPipelineLayouts()
 	// Rearrangement
 	{
 		Util::PipelineLayout pipelineLayout;
-		pipelineLayout.SetRange(0, DescriptorType::SRV, 3, 0, 0, DescriptorRangeFlag::DATA_STATIC);
-		pipelineLayout.SetRange(1, DescriptorType::UAV, 1, 0, 0);
+		pipelineLayout.SetRange(0, DescriptorType::SRV, 3, 0);
+		pipelineLayout.SetRange(1, DescriptorType::UAV, 1, 0);
 		X_RETURN(m_pipelineLayouts[REARRANGE], pipelineLayout.GetPipelineLayout(m_pipelineLayoutCache,
 			PipelineLayoutFlag::NONE, L"RearrangementLayout"), false);
 	}
@@ -84,8 +109,8 @@ bool FluidSPH::createPipelineLayouts()
 	{
 		Util::PipelineLayout pipelineLayout;
 		pipelineLayout.SetConstants(0, SizeOfInUint32(CBSimulation), 0, 0, Shader::Stage::CS);
-		pipelineLayout.SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorRangeFlag::DATA_STATIC);
-		pipelineLayout.SetRange(2, DescriptorType::UAV, 1, 0, 0);
+		pipelineLayout.SetRange(1, DescriptorType::SRV, 2, 0);
+		pipelineLayout.SetRange(2, DescriptorType::UAV, 1, 0);
 		X_RETURN(m_pipelineLayouts[DENSITY], pipelineLayout.GetPipelineLayout(m_pipelineLayoutCache,
 			PipelineLayoutFlag::NONE, L"DensityLayout"), false);
 	}
@@ -94,9 +119,9 @@ bool FluidSPH::createPipelineLayouts()
 	{
 		Util::PipelineLayout pipelineLayout;
 		pipelineLayout.SetConstants(0, SizeOfInUint32(CBSimulation), 0, 0, Shader::Stage::CS);
-		pipelineLayout.SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorRangeFlag::DATA_STATIC);
-		pipelineLayout.SetRange(2, DescriptorType::SRV, 1, 2, 0, DescriptorRangeFlag::DATA_STATIC);
-		pipelineLayout.SetRange(3, DescriptorType::UAV, 1, 0, 0);
+		pipelineLayout.SetRange(1, DescriptorType::SRV, 2, 0);
+		pipelineLayout.SetRange(2, DescriptorType::SRV, 1, 2);
+		pipelineLayout.SetRange(3, DescriptorType::UAV, 1, 0);
 		X_RETURN(m_pipelineLayouts[FORCE], pipelineLayout.GetPipelineLayout(m_pipelineLayoutCache,
 			PipelineLayoutFlag::NONE, L"ForceLayout"), false);
 	}
@@ -213,4 +238,54 @@ void FluidSPH::rearrange(const CommandList& commandList)
 	numBarriers = m_gridBuffer.SetBarrier(barriers, ResourceState::NON_PIXEL_SHADER_RESOURCE, numBarriers);
 	numBarriers = m_offsetBuffer.SetBarrier(barriers, ResourceState::NON_PIXEL_SHADER_RESOURCE, numBarriers);
 	commandList.Barrier(numBarriers, barriers);
+
+	// Set pipeline state
+	commandList.SetComputePipelineLayout(m_pipelineLayouts[REARRANGE]);
+	commandList.SetPipelineState(m_pipelines[REARRANGE]);
+
+	// Set descriptor tables
+	commandList.SetComputeDescriptorTable(0, m_srvTables[SRV_TABLE_REARRANGLE]);
+	commandList.SetComputeDescriptorTable(1, m_uavTables[UAV_TABLE_PARTICLE]);
+
+	commandList.Dispatch(DIV_UP(m_cbSimulation.NumParticles, 64), 1, 1);
+}
+
+void FluidSPH::density(const CommandList& commandList)
+{
+	// Set barriers
+	ResourceBarrier barriers[2];
+	auto numBarriers = m_densityBuffer.SetBarrier(barriers, ResourceState::UNORDERED_ACCESS);
+	numBarriers = m_pParticleBuffers[REARRANGED].SetBarrier(barriers, ResourceState::NON_PIXEL_SHADER_RESOURCE, numBarriers);
+	commandList.Barrier(numBarriers, barriers);
+
+	// Set pipeline state
+	commandList.SetComputePipelineLayout(m_pipelineLayouts[DENSITY]);
+	commandList.SetPipelineState(m_pipelines[DENSITY]);
+
+	// Set descriptor tables
+	commandList.SetCompute32BitConstants(0, SizeOfInUint32(m_cbSimulation), &m_cbSimulation);
+	commandList.SetComputeDescriptorTable(1, m_srvTables[SRV_TABLE_SPH]);
+	commandList.SetComputeDescriptorTable(2, m_uavTables[UAV_TABLE_DENSITY]);
+
+	commandList.Dispatch(DIV_UP(m_cbSimulation.NumParticles, 64), 1, 1);
+}
+
+void FluidSPH::force(const CommandList& commandList)
+{
+	// Set barriers
+	ResourceBarrier barriers[2];
+	auto numBarriers = m_forceBuffer.SetBarrier(barriers, ResourceState::UNORDERED_ACCESS);
+	numBarriers = m_densityBuffer.SetBarrier(barriers, ResourceState::NON_PIXEL_SHADER_RESOURCE, numBarriers);
+	commandList.Barrier(numBarriers, barriers);
+
+	// Set pipeline state
+	commandList.SetComputePipelineLayout(m_pipelineLayouts[FORCE]);
+	commandList.SetPipelineState(m_pipelines[FORCE]);
+
+	// Set descriptor tables
+	commandList.SetCompute32BitConstants(0, SizeOfInUint32(m_cbSimulation), &m_cbSimulation);
+	commandList.SetComputeDescriptorTable(1, m_srvTables[SRV_TABLE_SPH]);
+	commandList.SetComputeDescriptorTable(2, m_uavTables[UAV_TABLE_FORCE]);
+
+	commandList.Dispatch(DIV_UP(m_cbSimulation.NumParticles, 64), 1, 1);
 }

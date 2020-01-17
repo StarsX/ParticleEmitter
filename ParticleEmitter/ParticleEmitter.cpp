@@ -184,14 +184,14 @@ void ParticleEmitter::LoadAssets()
 
 #if defined(_DEBUG)
 	ComputeUtil prefixSumUtil(m_device);
-	prefixSumUtil.SetPrefixSum(m_commandList, m_descriptorTableCache, nullptr, &uploaders);
+	prefixSumUtil.SetPrefixSum(m_commandList, m_descriptorTableCache, nullptr, &uploaders, Format::R32_UINT, 1024 * 4);
 #endif
 
 	m_emitter->Distribute(m_commandList, counter, m_renderer->GetVertexBuffer(),
 		m_renderer->GetIndexBuffer(), m_renderer->GetNumIndices(), 32.0f, m_meshPosScale.w);
 
 #if defined(_DEBUG)
-	prefixSumUtil.PrefixSum(m_commandList, 4096);
+	prefixSumUtil.PrefixSum(m_commandList, 1024 * 4);
 #endif
 
 	// Close the command list and execute it to begin the initial GPU setup.
@@ -268,6 +268,7 @@ void ParticleEmitter::OnUpdate()
 	const auto viewProj = view * proj;
 	m_renderer->UpdateFrame(time, timeStep, m_meshPosScale, viewProj, m_isPaused);
 	m_emitter->UpdateFrame(time, timeStep, viewProj);
+	m_fluid->UpdateFrame();
 }
 
 // Render the scene.
@@ -415,8 +416,11 @@ void ParticleEmitter::PopulateCommandList()
 	m_renderer->Render(m_commandList, m_renderTargets[m_frameIndex].GetRTV(), m_depth.GetDSV());
 
 #if 1
-	m_emitter->Render(m_commandList, m_renderTargets[m_frameIndex].GetRTV(),
-		&m_depth.GetDSV(), m_renderer->GetWorld());
+	//m_emitter->Render(m_commandList, m_renderTargets[m_frameIndex].GetRTV(),
+		//&m_depth.GetDSV(), m_renderer->GetWorld());
+	m_emitter->RenderSPH(m_commandList, m_renderTargets[m_frameIndex].GetRTV(), &m_depth.GetDSV(),
+		m_fluid->GetBuildGridDescriptorTable(), m_renderer->GetWorld());
+	m_fluid->Simulate(m_commandList);
 #else
 	m_emitter->Visualize(m_commandList, m_renderTargets[m_frameIndex].GetRTV(),
 		&m_depth.GetDSV(), m_renderer->GetWorldViewProj());

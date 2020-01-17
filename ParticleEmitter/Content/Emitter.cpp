@@ -225,6 +225,8 @@ void Emitter::RenderSPH(const CommandList& commandList, const Descriptor& rtv,
 	// Set barrier with promotion
 	ResourceBarrier barrier;
 	m_particleBuffers[INTEGRATED].SetBarrier(&barrier, ResourceState::UNORDERED_ACCESS);
+	const auto numBarriers = m_particleBuffers[REARRANGED].SetBarrier(&barrier, ResourceState::NON_PIXEL_SHADER_RESOURCE);
+	commandList.Barrier(numBarriers, &barrier);
 
 	commandList.OMSetRenderTargets(1, &rtv, pDsv);
 

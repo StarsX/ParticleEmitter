@@ -27,8 +27,8 @@ float4 main(uint ParticleId : SV_VERTEXID) : SV_POSITION
 	const float4 svPos = Update(ParticleId, particle, acceleration);
 
 	// Build grid
-	const uint binIdx = GET_CELL_INDEX(binIdx, particle.Pos, svPos);
-	InterlockedAdd(g_rwGrid[binIdx], 1, g_rwOffsets[ParticleId]);
+	const uint cellIdx = GridGetCellIndexWithPosition(particle.Pos);
+	InterlockedAdd(g_rwGrid[cellIdx], 1, g_rwOffsets[ParticleId]);
 
 	return svPos;
 }
