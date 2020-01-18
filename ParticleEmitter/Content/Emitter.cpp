@@ -511,7 +511,7 @@ bool Emitter::createDescriptorTables()
 	// Create the sampler
 	{
 		Util::DescriptorTable samplerTable;
-		const auto samplerAnisoWrap = SamplerPreset::LINEAR_WRAP;
+		const auto samplerAnisoWrap = SamplerPreset::LINEAR_CLAMP;
 		samplerTable.SetSamplers(0, 1, &samplerAnisoWrap, *m_descriptorTableCache);
 		X_RETURN(m_samplerTable, samplerTable.GetSamplerTable(*m_descriptorTableCache), false);
 	}
