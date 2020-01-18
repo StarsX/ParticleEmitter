@@ -49,6 +49,7 @@ bool Emitter::Init(const CommandList& commandList, uint32_t numParticles,
 	for (auto& particle : particles)
 	{
 		particle = {};
+		particle.Pos.y = FLT_MAX;
 		particle.LifeTime = rand() % numParticles / 10000.0f;
 	}
 	uploaders.emplace_back();

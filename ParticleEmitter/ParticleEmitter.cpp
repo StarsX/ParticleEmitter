@@ -169,7 +169,7 @@ void ParticleEmitter::LoadAssets()
 		ThrowIfFailed(E_FAIL);
 
 	// Create emitter
-	const auto numParticles = 1u << 15;
+	const auto numParticles = 1u << 16;
 	m_emitter = make_unique<Emitter>(m_device);
 	if (!m_emitter) ThrowIfFailed(E_FAIL);
 	if (!m_emitter->Init(m_commandList, numParticles, m_descriptorTableCache, uploaders,

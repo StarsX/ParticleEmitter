@@ -55,6 +55,7 @@ float4 main(uint ParticleId : SV_VERTEXID) : SV_POSITION
 	g_rwGrid.GetDimensions(dim.x, dim.y, dim.z);
 	const float3 texel = 1.0 / dim;
 	float3 tex = SimulationToGridTexSpace(particle.Pos);
+	const float density = g_roDensity.SampleLevel(g_smpLinear, tex, 0.0);
 	const float densityL = g_roDensity.SampleLevel(g_smpLinear, tex + float3(-0.5, 0.0.xx) * texel, 0.0);
 	const float densityR = g_roDensity.SampleLevel(g_smpLinear, tex + float3(0.5, 0.0.xx) * texel, 0.0);
 	const float densityU = g_roDensity.SampleLevel(g_smpLinear, tex + float3(0.0, -0.5, 0.0) * texel, 0.0);
@@ -77,7 +78,7 @@ float4 main(uint ParticleId : SV_VERTEXID) : SV_POSITION
 	pressGrad.z = (pressB - pressF) * voxel;
 
 	// Update particle
-	const float4 svPos = Update(ParticleId, particle, -pressGrad * 0.05);
+	const float4 svPos = Update(ParticleId, particle, -pressGrad / density);
 
 	// Build grid
 	tex = SimulationToGridTexSpace(particle.Pos);

@@ -19,7 +19,7 @@ FluidSPH::FluidSPH(const Device& device) :
 	m_prefixSumUtil.SetDevice(device);
 
 	const XMFLOAT4 boundary(BOUNDARY_SPH);
-	m_cbSimulation.SmoothRadius = 1.0f / boundary.w;
+	m_cbSimulation.SmoothRadius = boundary.w * 2.0f / GRID_SIZE_SPH;
 	m_cbSimulation.PressureStiffness = 200.0f;
 	m_cbSimulation.RestDensity = 1000.0f;
 }
@@ -36,7 +36,7 @@ bool FluidSPH::Init(const CommandList& commandList, uint32_t numParticles,
 	m_descriptorTableCache = descriptorTableCache;
 	m_pParticleBuffers = pParticleBuffers;
 
-	const float mass = 5243.0f / numParticles;
+	const float mass = 1310.72f / numParticles;
 	const float viscosity = 0.1f;
 	m_cbSimulation.DensityCoef = mass * 315.0f / (64.0f * XM_PI * pow(m_cbSimulation.SmoothRadius, 9.0f));
 	m_cbSimulation.PressureGradCoef = mass * -45.0f / (XM_PI * pow(m_cbSimulation.SmoothRadius, 6.0f));
