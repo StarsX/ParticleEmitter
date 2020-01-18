@@ -46,6 +46,15 @@ public:
 	virtual void ParseCommandLineArgs(wchar_t* argv[], int argc);
 
 private:
+	enum SimulationMethod : uint8_t
+	{
+		NO_SIMULATION,
+		SPH_SIMULATION,
+		FAST_HYBRID_FLUID,
+
+		NUM_SIMULATION_METHOD
+	};
+
 	static const uint32_t FrameCount = 3;
 
 	std::shared_ptr<XUSG::DescriptorTableCache> m_descriptorTableCache;
@@ -81,6 +90,8 @@ private:
 	bool		m_showFPS;
 	bool		m_isPaused;
 	StepTimer	m_timer;
+	SimulationMethod m_simulationMethod;
+	std::wstring m_simulationMethodDesc;
 
 	// User camera interactions
 	bool m_tracking;
@@ -97,4 +108,6 @@ private:
 	void WaitForGpu();
 	void MoveToNextFrame();
 	double CalculateFrameStats(float* fTimeStep = nullptr);
+
+	static const wchar_t* SimulationMethodDescs[];
 };

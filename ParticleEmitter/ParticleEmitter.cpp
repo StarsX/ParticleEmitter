@@ -14,6 +14,13 @@
 using namespace std;
 using namespace XUSG;
 
+const wchar_t* ParticleEmitter::SimulationMethodDescs[] =
+{
+	L"No internal force simulation",
+	L"Smooth Particle Hydrodynamics",
+	L"Fast particle-grid hybrid fluid"
+};
+
 const float g_FOVAngleY = XM_PIDIV4;
 const float g_zNear = 1.0f;
 const float g_zFar = 1000.0f;
@@ -24,6 +31,7 @@ ParticleEmitter::ParticleEmitter(uint32_t width, uint32_t height, std::wstring n
 	m_frameIndex(0),
 	m_showFPS(true),
 	m_isPaused(false),
+	m_simulationMethod(SPH_SIMULATION),
 	m_tracking(false),
 	m_meshFileName("Media/bunny.obj"),
 	m_meshPosScale(0.0f, 0.0f, 0.0f, 1.0f)
@@ -191,7 +199,7 @@ void ParticleEmitter::LoadAssets()
 #if defined(_DEBUG)
 	ComputeUtil prefixSumUtil(m_device);
 	prefixSumUtil.SetPrefixSum(m_commandList, true, m_descriptorTableCache,
-		nullptr, &uploaders, Format::R32_UINT, 1024 * 5);
+		nullptr, &uploaders, Format::R32_UINT, 1024 * 5 + 387);
 #endif
 
 	m_emitter->Distribute(m_commandList, counter, m_renderer->GetVertexBuffer(),
@@ -275,7 +283,15 @@ void ParticleEmitter::OnUpdate()
 	const auto viewProj = view * proj;
 	m_renderer->UpdateFrame(time, timeStep, m_meshPosScale, viewProj, m_isPaused);
 	m_emitter->UpdateFrame(time, timeStep, viewProj);
-	m_fluidSPH->UpdateFrame();
+	switch (m_simulationMethod)
+	{
+	case SPH_SIMULATION:
+		m_fluidSPH->UpdateFrame();
+		break;
+	case FAST_HYBRID_FLUID:
+		m_fluidFH->UpdateFrame();
+		break;
+	}
 }
 
 // Render the scene.
@@ -313,6 +329,9 @@ void ParticleEmitter::OnKeyUp(uint8_t key)
 		break;
 	case 0x70:	//case VK_F1:
 		m_showFPS = !m_showFPS;
+		break;
+	case 'S':
+		m_simulationMethod = static_cast<SimulationMethod>((m_simulationMethod + 1) % NUM_SIMULATION_METHOD);
 		break;
 	}
 }
@@ -422,18 +441,23 @@ void ParticleEmitter::PopulateCommandList()
 	
 	m_renderer->Render(m_commandList, m_renderTargets[m_frameIndex].GetRTV(), m_depth.GetDSV());
 
-#if 1
-	m_emitter->RenderFHF(m_commandList, m_renderTargets[m_frameIndex].GetRTV(), &m_depth.GetDSV(),
-		m_fluidFH->GetDescriptorTable(), m_renderer->GetWorld());
-	m_fluidFH->Simulate(m_commandList);
-#elif 1
-	m_emitter->RenderSPH(m_commandList, m_renderTargets[m_frameIndex].GetRTV(), &m_depth.GetDSV(),
-		m_fluidSPH->GetDescriptorTable(), m_renderer->GetWorld());
-	m_fluidSPH->Simulate(m_commandList);
-#else
-	m_emitter->Render(m_commandList, m_renderTargets[m_frameIndex].GetRTV(),
-		&m_depth.GetDSV(), m_renderer->GetWorld());
-#endif
+	// Fluid simulation
+	switch (m_simulationMethod)
+	{
+	case SPH_SIMULATION:
+		m_emitter->RenderSPH(m_commandList, m_renderTargets[m_frameIndex].GetRTV(), &m_depth.GetDSV(),
+			m_fluidSPH->GetDescriptorTable(), m_renderer->GetWorld());
+		m_fluidSPH->Simulate(m_commandList);
+		break;
+	case FAST_HYBRID_FLUID:
+		m_emitter->RenderFHF(m_commandList, m_renderTargets[m_frameIndex].GetRTV(), &m_depth.GetDSV(),
+			m_fluidFH->GetDescriptorTable(), m_renderer->GetWorld());
+		m_fluidFH->Simulate(m_commandList);
+		break;
+	default:
+		m_emitter->Render(m_commandList, m_renderTargets[m_frameIndex].GetRTV(),
+			&m_depth.GetDSV(), m_renderer->GetWorld());
+	}
 
 	// Indicate that the back buffer will now be used to present.
 	numBarriers = m_renderTargets[m_frameIndex].SetBarrier(barriers, ResourceState::PRESENT);
@@ -499,7 +523,7 @@ double ParticleEmitter::CalculateFrameStats(float* pTimeStep)
 		windowText << L"    fps: ";
 		if (m_showFPS) windowText << setprecision(2) << fixed << fps;
 		else windowText << L"[F1]";
-
+		windowText << L"    [S] " << SimulationMethodDescs[m_simulationMethod];
 		SetCustomWindowText(windowText.str().c_str());
 	}
 

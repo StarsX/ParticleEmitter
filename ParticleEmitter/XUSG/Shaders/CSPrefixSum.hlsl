@@ -111,7 +111,7 @@ void main(uint DTid : SV_DispatchThreadID, uint GIdx : SV_GroupIndex, uint Gid :
 {
 	// Per-group prefix sum
 	const uint value = g_rwData[DTid];
-	const uint numActiveThreads = Gid + 1 < g_numGroups ? GROUP_SIZE : g_remainder;
+	const uint numActiveThreads = !g_remainder || Gid + 1 < g_numGroups ? GROUP_SIZE : g_remainder;
 	const uint sum = GroupPrefixSum(value, GIdx, numActiveThreads);
 
 	// If there is only one group, done!

@@ -231,8 +231,9 @@ void ComputeUtil::PrefixSum(const CommandList& commandList, uint32_t numElements
 	commandList.SetPipelineState(m_pipelines[pipelineIndex]);
 
 	// Set descriptor tables
-	const auto numGroups = DIV_UP(numElements, 1024);
-	const auto remainder = numElements & 1023;
+	const auto groupSize = 1024u;
+	const auto numGroups = DIV_UP(numElements, groupSize);
+	const auto remainder = numElements & (groupSize - 1);
 	commandList.SetCompute32BitConstant(0, numGroups);
 	commandList.SetCompute32BitConstant(0, remainder, 1);
 	commandList.SetComputeDescriptorTable(1, m_uavTables[UAV_TABLE_DATA]);
