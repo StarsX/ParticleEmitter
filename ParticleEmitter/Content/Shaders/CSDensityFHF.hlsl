@@ -16,7 +16,5 @@ Texture3D<uint>		g_roGrid;
 [numthreads(8, 8, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
-	const uint numParticlesPerCell = g_roGrid[DTid];
-
-	g_rwDensity[DTid] = g_densityCoef * numParticlesPerCell;
+	g_rwDensity[DTid] = g_roGrid[DTid] / 1000.0;
 }

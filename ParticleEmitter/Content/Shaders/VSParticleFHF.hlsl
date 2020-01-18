@@ -9,7 +9,22 @@
 #include "VSParticle.hlsl"
 #undef main
 
-static float4 g_boundaryFHF = { BOUNDARY_FHF };
+
+
+//--------------------------------------------------------------------------------------
+// Constant buffer
+//--------------------------------------------------------------------------------------
+cbuffer cbSimulation
+{
+	float	g_smoothRadius;
+	float	g_pressureStiffness;
+	float	g_restDensity;
+	float	g_densityCoef;
+};
+
+static const float4 g_boundaryFHF = { BOUNDARY_FHF };
+static const float g_cellSize = g_smoothRadius;
+static const float g_hSq = g_smoothRadius * g_smoothRadius;
 
 //--------------------------------------------------------------------------------------
 // Buffers
@@ -34,15 +49,40 @@ float3 SimulationToGridTexSpace(float3 v)
 }
 
 //--------------------------------------------------------------------------------------
+// Get cell center position
+//--------------------------------------------------------------------------------------
+float3 GetCellCenterPos(uint3 i, float3 texel)
+{
+	const float3 tex = (i + 0.5) * texel;
+	float3 pos = tex * 2.0 - 1.0;
+	pos.y = -pos.y;
+	
+	return pos * g_boundaryFHF.w + g_boundaryFHF.xyz;;
+}
+
+//--------------------------------------------------------------------------------------
+// Density calculation
+//--------------------------------------------------------------------------------------
+float CalculateDensity(float rSq)
+{
+	// Implements this equation:
+	// W_poly6(r, h) = 315 / (64 * pi * h^9) * (h^2 - r^2)^3
+	// g_densityCoef = particleMass * 315.0f / (64.0f * PI * g_smoothRadius^9)
+	const float dSq = g_hSq - rSq;
+
+	return g_densityCoef * dSq * dSq * dSq;
+}
+
+//--------------------------------------------------------------------------------------
 // Pressure calculation
 //--------------------------------------------------------------------------------------
 float CalculatePressure(float density)
 {
 	// Implements this equation:
 	// Pressure = B * ((rho / rho_0)^y - 1)
-	const float rhoRatio = density / 1000.0f;
+	const float rhoRatio = density / g_restDensity;
 
-	return 200.0f * max(rhoRatio * rhoRatio * rhoRatio - 1.0, 0.0);
+	return g_pressureStiffness * max(rhoRatio * rhoRatio * rhoRatio - 1.0, 0.0);
 }
 
 float4 main(uint ParticleId : SV_VERTEXID) : SV_POSITION
@@ -54,7 +94,7 @@ float4 main(uint ParticleId : SV_VERTEXID) : SV_POSITION
 	float3 dim;
 	g_rwGrid.GetDimensions(dim.x, dim.y, dim.z);
 	const float3 texel = 1.0 / dim;
-	float3 tex = SimulationToGridTexSpace(particle.Pos);
+	const float3 tex = SimulationToGridTexSpace(particle.Pos);
 	const float density = g_roDensity.SampleLevel(g_smpLinear, tex, 0.0);
 	const float densityL = g_roDensity.SampleLevel(g_smpLinear, tex + float3(-0.5, 0.0.xx) * texel, 0.0);
 	const float densityR = g_roDensity.SampleLevel(g_smpLinear, tex + float3(0.5, 0.0.xx) * texel, 0.0);
@@ -71,7 +111,7 @@ float4 main(uint ParticleId : SV_VERTEXID) : SV_POSITION
 	const float pressF = CalculatePressure(densityF);
 	const float pressB = CalculatePressure(densityB);
 
-	const float voxel = 1.0 / (g_boundaryFHF.w * 2.0 / GRID_SIZE_FHF);
+	const float voxel = 1.0 / g_cellSize;
 	float3 pressGrad;
 	pressGrad.x = (pressR - pressL) * voxel;
 	pressGrad.y = (pressU - pressD) * voxel;
@@ -80,10 +120,29 @@ float4 main(uint ParticleId : SV_VERTEXID) : SV_POSITION
 	// Update particle
 	const float4 svPos = Update(ParticleId, particle, -pressGrad / density);
 
-	// Build grid
-	tex = SimulationToGridTexSpace(particle.Pos);
-	if (any(tex < 0.0) || any(tex > 1.0)) return svPos;
-	InterlockedAdd(g_rwGrid[tex * dim], 1);
+	// Clamp range of cells
+	const uint3 cell = SimulationToGridTexSpace(particle.Pos) * dim;
+	const uint3 startCell = max(cell - 1, 0);
+	const uint3 endCell = min(cell + 1, GRID_SIZE_FHF - 1);
+
+	// Calculate the density based on neighbors from the 8 adjacent cells + current cell
+	for (uint3 i = startCell; i.z <= endCell.z; ++i.z)
+	{
+		for (i.y = startCell.y; i.y <= endCell.y; ++i.y)
+		{
+			for (i.x = startCell.x; i.x <= endCell.x; ++i.x)
+			{
+				const float3 cellPos = GetCellCenterPos(i, texel);
+				const float3 disp = cellPos - particle.Pos;
+				const float rSq = dot(disp, disp);
+				if (rSq < g_hSq)
+				{
+					const float density = CalculateDensity(rSq);
+					InterlockedAdd(g_rwGrid[i], density * 1000.0);
+				}
+			}
+		}
+	}
 
 	return svPos;
 }

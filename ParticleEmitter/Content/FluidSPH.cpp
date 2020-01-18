@@ -19,9 +19,9 @@ FluidSPH::FluidSPH(const Device& device) :
 	m_prefixSumUtil.SetDevice(device);
 
 	const XMFLOAT4 boundary(BOUNDARY_SPH);
-	m_cbSimulation.SmoothRadius = boundary.w * 2.0f / GRID_SIZE_SPH;
-	m_cbSimulation.PressureStiffness = 200.0f;
-	m_cbSimulation.RestDensity = 1000.0f;
+	m_cbSimulationData.SmoothRadius = boundary.w * 2.0f / GRID_SIZE_SPH;
+	m_cbSimulationData.PressureStiffness = 200.0f;
+	m_cbSimulationData.RestDensity = 1000.0f;
 }
 
 FluidSPH::~FluidSPH()
@@ -32,15 +32,15 @@ bool FluidSPH::Init(const CommandList& commandList, uint32_t numParticles,
 	shared_ptr<DescriptorTableCache> descriptorTableCache,
 	StructuredBuffer* pParticleBuffers)
 {
-	m_cbSimulation.NumParticles = numParticles;
+	m_cbSimulationData.NumParticles = numParticles;
 	m_descriptorTableCache = descriptorTableCache;
 	m_pParticleBuffers = pParticleBuffers;
 
 	const float mass = 1310.72f / numParticles;
 	const float viscosity = 0.1f;
-	m_cbSimulation.DensityCoef = mass * 315.0f / (64.0f * XM_PI * pow(m_cbSimulation.SmoothRadius, 9.0f));
-	m_cbSimulation.PressureGradCoef = mass * -45.0f / (XM_PI * pow(m_cbSimulation.SmoothRadius, 6.0f));
-	m_cbSimulation.ViscosityLaplaceCoef = mass * viscosity * 45.0f / (XM_PI * pow(m_cbSimulation.SmoothRadius, 6.0f));
+	m_cbSimulationData.DensityCoef = mass * 315.0f / (64.0f * XM_PI * pow(m_cbSimulationData.SmoothRadius, 9.0f));
+	m_cbSimulationData.PressureGradCoef = mass * -45.0f / (XM_PI * pow(m_cbSimulationData.SmoothRadius, 6.0f));
+	m_cbSimulationData.ViscosityLaplaceCoef = mass * viscosity * 45.0f / (XM_PI * pow(m_cbSimulationData.SmoothRadius, 6.0f));
 
 	// Create resources
 	N_RETURN(m_gridBuffer.Create(m_device, g_gridBufferSize,
@@ -256,7 +256,7 @@ void FluidSPH::rearrange(const CommandList& commandList)
 	commandList.SetComputeDescriptorTable(0, m_srvTables[SRV_TABLE_REARRANGLE]);
 	commandList.SetComputeDescriptorTable(1, m_uavTables[UAV_TABLE_PARTICLE]);
 
-	commandList.Dispatch(DIV_UP(m_cbSimulation.NumParticles, 64), 1, 1);
+	commandList.Dispatch(DIV_UP(m_cbSimulationData.NumParticles, 64), 1, 1);
 }
 
 void FluidSPH::density(const CommandList& commandList)
@@ -272,11 +272,11 @@ void FluidSPH::density(const CommandList& commandList)
 	commandList.SetPipelineState(m_pipelines[DENSITY]);
 
 	// Set descriptor tables
-	commandList.SetCompute32BitConstants(0, SizeOfInUint32(m_cbSimulation), &m_cbSimulation);
+	commandList.SetCompute32BitConstants(0, SizeOfInUint32(m_cbSimulationData), &m_cbSimulationData);
 	commandList.SetComputeDescriptorTable(1, m_srvTables[SRV_TABLE_SPH]);
 	commandList.SetComputeDescriptorTable(2, m_uavTables[UAV_TABLE_DENSITY]);
 
-	commandList.Dispatch(DIV_UP(m_cbSimulation.NumParticles, 64), 1, 1);
+	commandList.Dispatch(DIV_UP(m_cbSimulationData.NumParticles, 64), 1, 1);
 }
 
 void FluidSPH::force(const CommandList& commandList)
@@ -292,9 +292,9 @@ void FluidSPH::force(const CommandList& commandList)
 	commandList.SetPipelineState(m_pipelines[FORCE]);
 
 	// Set descriptor tables
-	commandList.SetCompute32BitConstants(0, SizeOfInUint32(m_cbSimulation), &m_cbSimulation);
+	commandList.SetCompute32BitConstants(0, SizeOfInUint32(m_cbSimulationData), &m_cbSimulationData);
 	commandList.SetComputeDescriptorTable(1, m_srvTables[SRV_TABLE_SPH]);
 	commandList.SetComputeDescriptorTable(2, m_uavTables[UAV_TABLE_FORCE]);
 
-	commandList.Dispatch(DIV_UP(m_cbSimulation.NumParticles, 64), 1, 1);
+	commandList.Dispatch(DIV_UP(m_cbSimulationData.NumParticles, 64), 1, 1);
 }

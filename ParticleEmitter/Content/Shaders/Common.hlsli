@@ -14,7 +14,7 @@ struct Particle
 	float LifeTime;
 };
 
-static float4 g_boundarySPH = { BOUNDARY_SPH };
+static const float4 g_boundarySPH = { BOUNDARY_SPH };
 static const uint g_numCells = GRID_SIZE_SPH * GRID_SIZE_SPH * GRID_SIZE_SPH;
 
 //--------------------------------------------------------------------------------------

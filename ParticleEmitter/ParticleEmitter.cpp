@@ -185,7 +185,7 @@ void ParticleEmitter::LoadAssets()
 	// Create fast hybrid fluid simulator
 	m_fluidFH = make_unique<FluidFH>(m_device);
 	if (!m_fluidFH) ThrowIfFailed(E_FAIL);
-	if (!m_fluidFH->Init(m_commandList, numParticles, m_descriptorTableCache))
+	if (!m_fluidFH->Init(m_commandList, numParticles, m_descriptorTableCache, uploaders))
 		ThrowIfFailed(E_FAIL);
 
 #if defined(_DEBUG)
@@ -422,7 +422,7 @@ void ParticleEmitter::PopulateCommandList()
 	
 	m_renderer->Render(m_commandList, m_renderTargets[m_frameIndex].GetRTV(), m_depth.GetDSV());
 
-#if 0
+#if 1
 	m_emitter->RenderFHF(m_commandList, m_renderTargets[m_frameIndex].GetRTV(), &m_depth.GetDSV(),
 		m_fluidFH->GetDescriptorTable(), m_renderer->GetWorld());
 	m_fluidFH->Simulate(m_commandList);

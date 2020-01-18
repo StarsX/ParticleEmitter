@@ -100,5 +100,5 @@ protected:
 
 	XUSG::StructuredBuffer*	m_pParticleBuffers;
 
-	CBSimulation			m_cbSimulation;
+	CBSimulation			m_cbSimulationData;
 };

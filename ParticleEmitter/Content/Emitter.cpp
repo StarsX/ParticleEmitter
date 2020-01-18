@@ -355,6 +355,7 @@ bool Emitter::createPipelineLayouts()
 		pipelineLayout.SetRange(2, DescriptorType::UAV, 1, 0);
 		pipelineLayout.SetRange(3, DescriptorType::UAV, 1, 1);
 		pipelineLayout.SetRange(3, DescriptorType::SRV, 1, 2);
+		pipelineLayout.SetRange(3, DescriptorType::CBV, 1, 1);
 		pipelineLayout.SetRange(4, DescriptorType::SAMPLER, 1, 0);
 		pipelineLayout.SetShaderStage(1, Shader::Stage::VS);
 		pipelineLayout.SetShaderStage(2, Shader::Stage::VS);

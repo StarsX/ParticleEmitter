@@ -15,7 +15,8 @@ public:
 	virtual ~FluidFH();
 
 	bool Init(const XUSG::CommandList& commandList, uint32_t numParticles,
-		std::shared_ptr<XUSG::DescriptorTableCache> descriptorTableCache);
+		std::shared_ptr<XUSG::DescriptorTableCache> descriptorTableCache,
+		std::vector<XUSG::Resource>& uploaders);
 
 	void UpdateFrame();
 	void Simulate(const XUSG::CommandList& commandList);
@@ -23,12 +24,20 @@ public:
 	const XUSG::DescriptorTable& GetDescriptorTable() const;
 
 protected:
-	enum UavSrvTable : uint8_t
+	enum CbvUavSrvTable : uint8_t
 	{
-		UAV_SRV_TABLE_PARTICLE,
-		UAV_SRV_TABLE_DENSITY,
+		CBV_UAV_SRV_TABLE_PARTICLE,
+		CBV_UAV_SRV_TABLE_DENSITY,
 
-		NUM_UAV_TABLE
+		NUM_CBV_UAV_SRV_TABLE
+	};
+
+	struct CBSimulation
+	{
+		float SmoothRadius;
+		float PressureStiffness;
+		float RestDensity;
+		float DensityCoef;
 	};
 
 	bool createPipelineLayouts();
@@ -47,10 +56,11 @@ protected:
 	XUSG::PipelineLayout	m_pipelineLayout;
 	XUSG::Pipeline			m_pipeline;
 
-	XUSG::DescriptorTable	m_uavSrvTables[NUM_UAV_TABLE];
+	XUSG::DescriptorTable	m_cbvUavSrvTables[NUM_CBV_UAV_SRV_TABLE];
 
 	XUSG::Texture3D			m_grid;
 	XUSG::Texture3D			m_density;
+	XUSG::ConstantBuffer	m_cbSimulation;
 
-	float					m_densityCoef;
+	CBSimulation			m_cbSimulationData;
 };
