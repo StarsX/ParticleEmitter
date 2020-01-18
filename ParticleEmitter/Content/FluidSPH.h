@@ -21,7 +21,7 @@ public:
 	void UpdateFrame();
 	void Simulate(const XUSG::CommandList& commandList);
 
-	const XUSG::DescriptorTable& GetBuildGridDescriptorTable() const;
+	const XUSG::DescriptorTable& GetDescriptorTable() const;
 
 protected:
 	enum ParticleBufferIndex : uint8_t
@@ -39,12 +39,6 @@ protected:
 		FORCE,
 
 		NUM_PIPELINE
-	};
-
-	enum DescriptorPoolIndex : uint8_t
-	{
-		IMMUTABLE_POOL,
-		TEMPORARY_POOL
 	};
 
 	enum UAVTable : uint8_t

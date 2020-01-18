@@ -14,15 +14,16 @@ struct Particle
 	float LifeTime;
 };
 
-static float4 g_boundary = { BOUNDARY };
+static float4 g_boundarySPH = { BOUNDARY_SPH };
+static const uint g_numCells = GRID_SIZE_SPH * GRID_SIZE_SPH * GRID_SIZE_SPH;
 
 //--------------------------------------------------------------------------------------
 // Transform from simulation space to grid space
 //--------------------------------------------------------------------------------------
 int3 SimulationToGridSpace(float3 v)
 {
-	const float halfGridSize = GRID_SIZE * 0.5;
-	v = (v - g_boundary.xyz) / g_boundary.w; // [-1, 1]
+	const float halfGridSize = GRID_SIZE_SPH * 0.5;
+	v = (v - g_boundarySPH.xyz) / g_boundarySPH.w; // [-1, 1]
 
 	return v * halfGridSize + halfGridSize;
 }
@@ -48,7 +49,7 @@ float3 SimulationToWorldSpace(float3 v)
 //--------------------------------------------------------------------------------------
 bool IsOutOfGrid(int3 pos)
 {
-	return any(pos < 0.0) || any(pos >= GRID_SIZE);
+	return any(pos < 0.0) || any(pos >= GRID_SIZE_SPH);
 }
 
 //--------------------------------------------------------------------------------------
@@ -56,7 +57,7 @@ bool IsOutOfGrid(int3 pos)
 //--------------------------------------------------------------------------------------
 uint GridGetCellIndex(int3 pos)
 {
-	return dot(pos, int3(1, GRID_SIZE, GRID_SIZE * GRID_SIZE));
+	return dot(pos, int3(1, GRID_SIZE_SPH, GRID_SIZE_SPH * GRID_SIZE_SPH));
 }
 
 //--------------------------------------------------------------------------------------
@@ -67,5 +68,5 @@ uint GridGetCellIndexWithPosition(float3 pos)
 	int3 gPos = SimulationToGridSpace(pos);
 	//gPos = clamp(gPos, 0.0, GRID_SIZE - 0.0001);
 
-	return IsOutOfGrid(gPos) ? GRID_SIZE * GRID_SIZE * GRID_SIZE : GridGetCellIndex(gPos);
+	return IsOutOfGrid(gPos) ? g_numCells : GridGetCellIndex(gPos);
 }

@@ -15,6 +15,7 @@
 #include "Renderer.h"
 #include "Emitter.h"
 #include "FluidSPH.h"
+#include "FluidFH.h"
 
 using namespace DirectX;
 
@@ -60,7 +61,8 @@ private:
 	// App resources.
 	std::unique_ptr<Renderer> m_renderer;
 	std::unique_ptr<Emitter> m_emitter;
-	std::unique_ptr<FluidSPH> m_fluid;
+	std::unique_ptr<FluidSPH> m_fluidSPH;
+	std::unique_ptr<FluidFH> m_fluidFH;
 	XUSG::DepthStencil	m_depth;
 	XMFLOAT4X4	m_proj;
 	XMFLOAT4X4	m_view;

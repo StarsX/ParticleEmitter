@@ -36,7 +36,7 @@ void main(uint DTid : SV_DispatchThreadID)
 
 	// Clamp range of cells
 	const uint3 startCell = max(cellPos - 1, 0);
-	const uint3 endCell = min(cellPos + 1, GRID_SIZE - 1);
+	const uint3 endCell = min(cellPos + 1, GRID_SIZE_SPH - 1);
 
 	// Calculate the density based on neighbors from the 8 adjacent cells + current cell
 	for (uint3 i = startCell; i.z <= endCell.z; ++i.z)

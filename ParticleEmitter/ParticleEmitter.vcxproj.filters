@@ -70,6 +70,9 @@
     <Filter Include="Shaders\Common">
       <UniqueIdentifier>{a750f8a0-47e8-47ed-a646-5712d50ff554}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\FastHybridFluid">
+      <UniqueIdentifier>{43d964aa-e03a-43f0-bb86-5f21a29bac8b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common\d3dx12.h">
@@ -153,6 +156,9 @@
     <ClInclude Include="Content\SharedConst.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Content\FluidFH.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Common\DXFramework.cpp">
@@ -213,6 +219,9 @@
       <Filter>XUSG\Optional\Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Content\FluidSPH.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Content\FluidFH.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -287,6 +296,12 @@
     </FxCompile>
     <FxCompile Include="Content\Shaders\VSParticle.hlsl">
       <Filter>Shaders\Common</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\VSParticleFHF.hlsl">
+      <Filter>Shaders\FastHybridFluid</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\CSDensityFHF.hlsl">
+      <Filter>Shaders\FastHybridFluid</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

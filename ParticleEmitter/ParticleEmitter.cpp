@@ -176,10 +176,16 @@ void ParticleEmitter::LoadAssets()
 		m_renderer->GetInputLayout(), Format::B8G8R8A8_UNORM, Format::D24_UNORM_S8_UINT))
 		ThrowIfFailed(E_FAIL);
 
-	// Create fluid simulator
-	m_fluid = make_unique<FluidSPH>(m_device);
-	if (!m_fluid) ThrowIfFailed(E_FAIL);
-	if (!m_fluid->Init(m_commandList, numParticles, m_descriptorTableCache, m_emitter->GetParticleBuffers()))
+	// Create SPH fluid simulator
+	m_fluidSPH = make_unique<FluidSPH>(m_device);
+	if (!m_fluidSPH) ThrowIfFailed(E_FAIL);
+	if (!m_fluidSPH->Init(m_commandList, numParticles, m_descriptorTableCache, m_emitter->GetParticleBuffers()))
+		ThrowIfFailed(E_FAIL);
+
+	// Create fast hybrid fluid simulator
+	m_fluidFH = make_unique<FluidFH>(m_device);
+	if (!m_fluidFH) ThrowIfFailed(E_FAIL);
+	if (!m_fluidFH->Init(m_commandList, numParticles, m_descriptorTableCache))
 		ThrowIfFailed(E_FAIL);
 
 #if defined(_DEBUG)
@@ -269,7 +275,7 @@ void ParticleEmitter::OnUpdate()
 	const auto viewProj = view * proj;
 	m_renderer->UpdateFrame(time, timeStep, m_meshPosScale, viewProj, m_isPaused);
 	m_emitter->UpdateFrame(time, timeStep, viewProj);
-	m_fluid->UpdateFrame();
+	m_fluidSPH->UpdateFrame();
 }
 
 // Render the scene.
@@ -416,15 +422,17 @@ void ParticleEmitter::PopulateCommandList()
 	
 	m_renderer->Render(m_commandList, m_renderTargets[m_frameIndex].GetRTV(), m_depth.GetDSV());
 
-#if 1
-	//m_emitter->Render(m_commandList, m_renderTargets[m_frameIndex].GetRTV(),
-		//&m_depth.GetDSV(), m_renderer->GetWorld());
+#if 0
+	m_emitter->RenderFHF(m_commandList, m_renderTargets[m_frameIndex].GetRTV(), &m_depth.GetDSV(),
+		m_fluidFH->GetDescriptorTable(), m_renderer->GetWorld());
+	m_fluidFH->Simulate(m_commandList);
+#elif 1
 	m_emitter->RenderSPH(m_commandList, m_renderTargets[m_frameIndex].GetRTV(), &m_depth.GetDSV(),
-		m_fluid->GetBuildGridDescriptorTable(), m_renderer->GetWorld());
-	m_fluid->Simulate(m_commandList);
+		m_fluidSPH->GetDescriptorTable(), m_renderer->GetWorld());
+	m_fluidSPH->Simulate(m_commandList);
 #else
-	m_emitter->Visualize(m_commandList, m_renderTargets[m_frameIndex].GetRTV(),
-		&m_depth.GetDSV(), m_renderer->GetWorldViewProj());
+	m_emitter->Render(m_commandList, m_renderTargets[m_frameIndex].GetRTV(),
+		&m_depth.GetDSV(), m_renderer->GetWorld());
 #endif
 
 	// Indicate that the back buffer will now be used to present.

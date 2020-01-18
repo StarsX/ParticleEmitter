@@ -2,29 +2,21 @@
 // Copyright (c) XU, Tianchen. All rights reserved.
 //--------------------------------------------------------------------------------------
 
-#include "Common.hlsli"
-
 //--------------------------------------------------------------------------------------
-// Constant buffers
+// Constant buffer
 //--------------------------------------------------------------------------------------
-cbuffer cbSimulation
-{
-	uint	g_numParticles;
-	float	g_smoothRadius;
-	float	g_pressureStiffness;
-	float	g_restDensity;
-	float	g_densityCoef;
-	float	g_pressureGradCoef;
-	float	g_viscosityLaplaceCoef;
-};
-
-//--------------------------------------------------------------------------------------
-// Constants
-//--------------------------------------------------------------------------------------
-static const float g_hSq = g_smoothRadius * g_smoothRadius;
+const float g_densityCoef;
 
 //--------------------------------------------------------------------------------------
 // Buffers
 //--------------------------------------------------------------------------------------
-StructuredBuffer<Particle> g_roParticles;
-Buffer<uint>	g_roGrid;
+RWTexture3D<float>	g_rwDensity;
+Texture3D<uint>		g_roGrid;
+
+[numthreads(8, 8, 1)]
+void main(uint3 DTid : SV_DispatchThreadID)
+{
+	const uint numParticlesPerCell = g_roGrid[DTid];
+
+	g_rwDensity[DTid] = g_densityCoef * numParticlesPerCell;
+}

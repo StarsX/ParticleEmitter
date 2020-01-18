@@ -9,7 +9,7 @@ using namespace std;
 using namespace DirectX;
 using namespace XUSG;
 
-const uint32_t g_gridBufferSize = GRID_SIZE * GRID_SIZE * GRID_SIZE + 1;
+const uint32_t g_gridBufferSize = GRID_SIZE_SPH * GRID_SIZE_SPH * GRID_SIZE_SPH + 1;
 
 FluidSPH::FluidSPH(const Device& device) :
 	m_device(device)
@@ -18,7 +18,7 @@ FluidSPH::FluidSPH(const Device& device) :
 	m_pipelineLayoutCache.SetDevice(device);
 	m_prefixSumUtil.SetDevice(device);
 
-	const XMFLOAT4 boundary(BOUNDARY);
+	const XMFLOAT4 boundary(BOUNDARY_SPH);
 	m_cbSimulation.SmoothRadius = 1.0f / boundary.w;
 	m_cbSimulation.PressureStiffness = 200.0f;
 	m_cbSimulation.RestDensity = 1000.0f;
@@ -99,7 +99,7 @@ void FluidSPH::Simulate(const CommandList& commandList)
 		m_gridBuffer.GetResource(), clear);
 }
 
-const DescriptorTable& FluidSPH::GetBuildGridDescriptorTable() const
+const DescriptorTable& FluidSPH::GetDescriptorTable() const
 {
 	return m_uavSrvTable;
 }

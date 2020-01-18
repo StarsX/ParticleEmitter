@@ -209,7 +209,7 @@ void Emitter::Render(const CommandList& commandList, const Descriptor& rtv,
 }
 
 void Emitter::RenderSPH(const CommandList& commandList, const Descriptor& rtv,
-	const Descriptor* pDsv, const DescriptorTable& buildGridDescriptorTable,
+	const Descriptor* pDsv, const DescriptorTable& fluidDescriptorTable,
 	const XMFLOAT4X4& world)
 {
 	m_cbParticle.WorldPrev = m_cbParticle.World;
@@ -240,7 +240,40 @@ void Emitter::RenderSPH(const CommandList& commandList, const Descriptor& rtv,
 	commandList.SetGraphics32BitConstants(0, SizeOfInUint32(m_cbParticle), &m_cbParticle);
 	commandList.SetGraphicsDescriptorTable(1, m_srvTable);
 	commandList.SetGraphicsDescriptorTable(2, m_uavTables[UAV_TABLE_PARTICLE1]);
-	commandList.SetGraphicsDescriptorTable(3, buildGridDescriptorTable);
+	commandList.SetGraphicsDescriptorTable(3, fluidDescriptorTable);
+
+	commandList.Draw(m_cbParticle.NumParticles, 1, 0, 0);
+}
+
+void Emitter::RenderFHF(const CommandList& commandList, const Descriptor& rtv,
+	const Descriptor* pDsv, const DescriptorTable& fluidDescriptorTable,
+	const XMFLOAT4X4& world)
+{
+	m_cbParticle.WorldPrev = m_cbParticle.World;
+	m_cbParticle.World = world;
+	m_cbParticle.BaseSeed = rand();
+
+	const DescriptorPool descriptorPools[] =
+	{
+		m_descriptorTableCache->GetDescriptorPool(CBV_SRV_UAV_POOL),
+		m_descriptorTableCache->GetDescriptorPool(SAMPLER_POOL)
+	};
+	commandList.SetDescriptorPools(static_cast<uint32_t>(size(descriptorPools)), descriptorPools);
+
+	commandList.OMSetRenderTargets(1, &rtv, pDsv);
+
+	// Set pipeline state
+	commandList.SetGraphicsPipelineLayout(m_pipelineLayouts[PARTICLE_FHF]);
+	commandList.SetPipelineState(m_pipelines[PARTICLE_FHF]);
+
+	commandList.IASetPrimitiveTopology(PrimitiveTopology::POINTLIST);
+
+	// Set descriptor tables
+	commandList.SetGraphics32BitConstants(0, SizeOfInUint32(m_cbParticle), &m_cbParticle);
+	commandList.SetGraphicsDescriptorTable(1, m_srvTable);
+	commandList.SetGraphicsDescriptorTable(2, m_uavTables[UAV_TABLE_PARTICLE]);
+	commandList.SetGraphicsDescriptorTable(3, fluidDescriptorTable);
+	commandList.SetGraphicsDescriptorTable(4, m_samplerTable);
 
 	commandList.Draw(m_cbParticle.NumParticles, 1, 0, 0);
 }
@@ -311,6 +344,23 @@ bool Emitter::createPipelineLayouts()
 		pipelineLayout.SetShaderStage(3, Shader::Stage::VS);
 		X_RETURN(m_pipelineLayouts[PARTICLE_SPH], pipelineLayout.GetPipelineLayout(m_pipelineLayoutCache,
 			PipelineLayoutFlag::NONE, L"ParticleSPHLayout"), false);
+	}
+
+	// Particle emission and integration for fast hybrid fluid
+	{
+		Util::PipelineLayout pipelineLayout;
+		pipelineLayout.SetConstants(0, SizeOfInUint32(CBParticle), 0, 0, Shader::Stage::VS);
+		pipelineLayout.SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorRangeFlag::DATA_STATIC);
+		pipelineLayout.SetRange(2, DescriptorType::UAV, 1, 0);
+		pipelineLayout.SetRange(3, DescriptorType::UAV, 1, 1);
+		pipelineLayout.SetRange(3, DescriptorType::SRV, 1, 2);
+		pipelineLayout.SetRange(4, DescriptorType::SAMPLER, 1, 0);
+		pipelineLayout.SetShaderStage(1, Shader::Stage::VS);
+		pipelineLayout.SetShaderStage(2, Shader::Stage::VS);
+		pipelineLayout.SetShaderStage(3, Shader::Stage::VS);
+		pipelineLayout.SetShaderStage(4, Shader::Stage::VS);
+		X_RETURN(m_pipelineLayouts[PARTICLE_FHF], pipelineLayout.GetPipelineLayout(m_pipelineLayoutCache,
+			PipelineLayoutFlag::NONE, L"ParticleFHFLayout"), false);
 	}
 
 	// Particle emission
@@ -391,6 +441,21 @@ bool Emitter::createPipelines(const InputLayout& inputLayout, Format rtFormat, F
 		X_RETURN(m_pipelines[PARTICLE_SPH], state.GetPipeline(m_graphicsPipelineCache, L"ParticleSPH"), false);
 	}
 
+	// Particle emission and integration for fast hybrid fluid
+	{
+		N_RETURN(m_shaderPool.CreateShader(Shader::Stage::VS, vsIndex, L"VSParticleFHF.cso"), false);
+
+		Graphics::State state;
+		state.SetPipelineLayout(m_pipelineLayouts[PARTICLE_FHF]);
+		state.SetShader(Shader::Stage::VS, m_shaderPool.GetShader(Shader::Stage::VS, vsIndex++));
+		state.SetShader(Shader::Stage::PS, m_shaderPool.GetShader(Shader::Stage::PS, psIndex));
+		state.IASetPrimitiveTopologyType(PrimitiveTopologyType::POINT);
+		state.OMSetNumRenderTargets(1);
+		state.OMSetRTVFormat(0, rtFormat);
+		state.OMSetDSVFormat(dsFormat);
+		X_RETURN(m_pipelines[PARTICLE_FHF], state.GetPipeline(m_graphicsPipelineCache, L"ParticleFHF"), false);
+	}
+
 	// Particle emission
 	{
 		N_RETURN(m_shaderPool.CreateShader(Shader::Stage::CS, csIndex, L"CSEmit.cso"), false);
@@ -439,6 +504,14 @@ bool Emitter::createDescriptorTables()
 		Util::DescriptorTable uavTable;
 		uavTable.SetDescriptors(0, 1, &m_particleBuffers[i].GetUAV());
 		X_RETURN(m_uavTables[UAV_TABLE_PARTICLE + i], uavTable.GetCbvSrvUavTable(*m_descriptorTableCache), false);
+	}
+
+	// Create the sampler
+	{
+		Util::DescriptorTable samplerTable;
+		const auto samplerAnisoWrap = SamplerPreset::LINEAR_WRAP;
+		samplerTable.SetSamplers(0, 1, &samplerAnisoWrap, *m_descriptorTableCache);
+		X_RETURN(m_samplerTable, samplerTable.GetSamplerTable(*m_descriptorTableCache), false);
 	}
 
 	return true;

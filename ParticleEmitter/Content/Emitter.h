@@ -29,6 +29,9 @@ public:
 	void Render(const XUSG::CommandList& commandList, const XUSG::Descriptor& rtv,
 		const XUSG::Descriptor* pDsv, const DirectX::XMFLOAT4X4& world);
 	void RenderSPH(const XUSG::CommandList& commandList, const XUSG::Descriptor& rtv,
+		const XUSG::Descriptor* pDsv, const XUSG::DescriptorTable& fluidDescriptorTable,
+		const DirectX::XMFLOAT4X4& world);
+	void RenderFHF(const XUSG::CommandList& commandList, const XUSG::Descriptor& rtv,
 		const XUSG::Descriptor* pDsv, const XUSG::DescriptorTable& buildGridDescriptorTable,
 		const DirectX::XMFLOAT4X4& world);
 	void Visualize(const XUSG::CommandList& commandList, const XUSG::Descriptor& rtv,
@@ -50,6 +53,7 @@ protected:
 		DISTRIBUTE,
 		PARTICLE,
 		PARTICLE_SPH,
+		PARTICLE_FHF,
 		EMISSION,
 		VISUALIZE,
 
@@ -120,6 +124,7 @@ protected:
 
 	XUSG::DescriptorTable	m_uavTables[NUM_UAV_TABLE];
 	XUSG::DescriptorTable	m_srvTable;
+	XUSG::DescriptorTable	m_samplerTable;
 
 	XUSG::Descriptor		m_srvVertexBuffer;
 
