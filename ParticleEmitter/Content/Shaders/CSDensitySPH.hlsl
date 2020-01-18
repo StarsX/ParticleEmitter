@@ -32,12 +32,13 @@ void main(uint DTid : SV_DispatchThreadID)
 	const int3 cellPos = SimulationToGridSpace(pos);
 	if (IsOutOfGrid(cellPos)) return;
 
+	float density = 0.0;
+
 	// Clamp range of cells
 	const uint3 startCell = max(cellPos - 1, 0);
 	const uint3 endCell = min(cellPos + 1, GRID_SIZE - 1);
 
 	// Calculate the density based on neighbors from the 8 adjacent cells + current cell
-	float density = 0.0;
 	for (uint3 i = startCell; i.z <= endCell.z; ++i.z)
 	{
 		for (i.y = startCell.y; i.y <= endCell.y; ++i.y)

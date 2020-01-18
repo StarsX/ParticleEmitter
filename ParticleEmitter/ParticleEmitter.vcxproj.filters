@@ -61,6 +61,15 @@
     <Filter Include="XUSG\Shaders">
       <UniqueIdentifier>{55bc6982-7bb6-4687-b240-067b39915fac}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\SPH">
+      <UniqueIdentifier>{2646a733-143f-4ab1-8569-5b5d6bec7ca2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Preprocess">
+      <UniqueIdentifier>{95cf1503-a3db-4246-9d7c-ef8ae4192b8e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Common">
+      <UniqueIdentifier>{a750f8a0-47e8-47ed-a646-5712d50ff554}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common\d3dx12.h">
@@ -220,11 +229,11 @@
     <None Include="XUSG\Core\XUSGSampler.inl">
       <Filter>XUSG\Core\Source Files\Inc</Filter>
     </None>
-    <None Include="Content\Shaders\Common.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="Content\Shaders\CSSimulation.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders\SPH</Filter>
+    </None>
+    <None Include="Content\Shaders\Common.hlsli">
+      <Filter>Shaders\Common</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -237,47 +246,47 @@
     <FxCompile Include="Content\Shaders\PSBasePass.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Content\Shaders\VSDistribute.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Content\Shaders\HSDistribute.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Content\Shaders\DSDistribute.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Content\Shaders\VSShowEmitter.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Content\Shaders\CSEmit.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="Content\Shaders\PSConstColor.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Content\Shaders\VSParticleSPH.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Content\Shaders\VSParticle.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Content\Shaders\CSRearrange.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="XUSG\Shaders\CSPrefixSum.hlsl">
       <Filter>XUSG\Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Content\Shaders\CSDensitySPH.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Content\Shaders\CSForceSPH.hlsl">
-      <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="XUSG\Shaders\CSPrefixSum2.hlsl">
       <Filter>XUSG\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="XUSG\Shaders\CSPrefixSum1.hlsl">
       <Filter>XUSG\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\CSForceSPH.hlsl">
+      <Filter>Shaders\SPH</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\CSDensitySPH.hlsl">
+      <Filter>Shaders\SPH</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\VSParticleSPH.hlsl">
+      <Filter>Shaders\SPH</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\CSRearrange.hlsl">
+      <Filter>Shaders\SPH</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\DSDistribute.hlsl">
+      <Filter>Shaders\Preprocess</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\HSDistribute.hlsl">
+      <Filter>Shaders\Preprocess</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\VSDistribute.hlsl">
+      <Filter>Shaders\Preprocess</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\VSShowEmitter.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\CSEmit.hlsl">
+      <Filter>Shaders\Common</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\VSParticle.hlsl">
+      <Filter>Shaders\Common</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>
