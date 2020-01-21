@@ -169,12 +169,13 @@ float4 main(uint ParticleId : SV_VERTEXID) : SV_POSITION
 	const float3 texel = 1.0 / GRID_SIZE_FHF;
 	const float3 tex = SimulationToGridTexSpace(particle.Pos);
 	LoadGrid(gridData, tex, texel);
+	const float density = gridData[C].w > 0.0 ? gridData[C].w : g_restDensity;
 	const float3 pressGrad = CalculateGradPressure(gridData);
 	const float3 velocityLaplace = CalculateVelocityLaplace(gridData);
 
 	float3 acceleration = -pressGrad;
 	acceleration += g_viscosity * velocityLaplace;
-	acceleration /= gridData[C].w > 0.0 ? gridData[C].w : 1.0;
+	acceleration /= density;
 
 	// Update particle
 	const float4 svPos = Update(ParticleId, particle, acceleration);
@@ -196,9 +197,9 @@ float4 main(uint ParticleId : SV_VERTEXID) : SV_POSITION
 				const float r_sq = dot(disp, disp);
 				if (r_sq < g_h_sq)
 				{
-					const float density = CalculateDensity(r_sq);
+					const float rho = CalculateDensity(r_sq);
 #if 1
-					const float3 velocity = CalculateVelocity(r_sq, particle.Velocity, gridData[C].w);
+					const float3 velocity = CalculateVelocity(r_sq, particle.Velocity, density);
 					uint rhoEnc = 0xffffffff;
 					for (uint k = 0; k < 0xffffffff && rhoEnc == 0xffffffff; ++k)
 					{
@@ -207,17 +208,14 @@ float4 main(uint ParticleId : SV_VERTEXID) : SV_POSITION
 						if (rhoEnc != 0xffffffff)
 						{
 							// Critical section
-							g_rwDensity[i] = rhoEnc + density * 1000.0;
-							if (gridData[C].w > 0.0)
-							{
-								g_rwVelocity[0][i] += velocity.x;
-								g_rwVelocity[1][i] += velocity.y;
-								g_rwVelocity[2][i] += velocity.z;
-							}
+							g_rwDensity[i] = asuint(asfloat(rhoEnc) + rho);
+							g_rwVelocity[0][i] += velocity.x;
+							g_rwVelocity[1][i] += velocity.y;
+							g_rwVelocity[2][i] += velocity.z;
 						}
 					}
 #else
-					InterlockedAdd(g_rwDensity[i], density * 1000.0);
+					InterlockedAdd(g_rwDensity[i], rho * 1000.0);
 #endif
 				}
 			}

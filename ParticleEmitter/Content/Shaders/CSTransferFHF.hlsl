@@ -17,7 +17,7 @@ RWTexture3D<float4>	g_rwGrid;
 [numthreads(8, 8, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
-	const float density = g_rwDensity[DTid] / 1000.0;
+	const float density = asfloat(g_rwDensity[DTid]);
 	
 	float3 velocity;
 	velocity.x = g_rwVelocity[0][DTid];
