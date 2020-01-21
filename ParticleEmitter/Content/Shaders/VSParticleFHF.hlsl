@@ -9,6 +9,14 @@
 #include "VSParticle.hlsl"
 #undef main
 
+#if COMPUTE_VISCOSITY
+#define RHO w
+typedef float4 GridType;
+#else
+#define RHO x
+typedef float GridType;
+#endif
+
 #define C 0
 #define L 1
 #define R 2
@@ -38,9 +46,11 @@ static const float g_h_cb = g_h_sq * g_smoothRadius;
 //--------------------------------------------------------------------------------------
 // Buffers
 //--------------------------------------------------------------------------------------
-RWTexture3D<uint> g_rwDensity;
+RWTexture3D<uint> g_rwDensityU;
+#if COMPUTE_VISCOSITY
 globallycoherent RWTexture3D<float> g_rwVelocity[3];
-Texture3D g_roGrid;
+#endif
+Texture3D<GridType> g_roGrid;
 
 //--------------------------------------------------------------------------------------
 // Sampler
@@ -112,7 +122,7 @@ float3 CalculateVelocity(float r_sq, float3 velocity, float density)
 //--------------------------------------------------------------------------------------
 // Load grid data
 //--------------------------------------------------------------------------------------
-void LoadGrid(out float4 gridData[7], float3 tex, float3 texel)
+void LoadGrid(out GridType gridData[7], float3 tex, float3 texel)
 {
 	// Load velocities and densities
 	gridData[C] = g_roGrid.SampleLevel(g_smpLinear, tex, 0.0);
@@ -127,15 +137,15 @@ void LoadGrid(out float4 gridData[7], float3 tex, float3 texel)
 //--------------------------------------------------------------------------------------
 // Pressure gradient calculation
 //--------------------------------------------------------------------------------------
-float3 CalculateGradPressure(float4 gridData[7])
+float3 CalculateGradPressure(GridType gridData[7])
 {
 	// Compute pressures
-	const float pressL = CalculatePressure(gridData[L].w);
-	const float pressR = CalculatePressure(gridData[R].w);
-	const float pressU = CalculatePressure(gridData[U].w);
-	const float pressD = CalculatePressure(gridData[D].w);
-	const float pressF = CalculatePressure(gridData[F].w);
-	const float pressB = CalculatePressure(gridData[B].w);
+	const float pressL = CalculatePressure(gridData[L].RHO);
+	const float pressR = CalculatePressure(gridData[R].RHO);
+	const float pressU = CalculatePressure(gridData[U].RHO);
+	const float pressD = CalculatePressure(gridData[D].RHO);
+	const float pressF = CalculatePressure(gridData[F].RHO);
+	const float pressB = CalculatePressure(gridData[B].RHO);
 
 	const float voxel = 1.0 / g_cellSize;
 	float3 deltaPressure;
@@ -165,16 +175,20 @@ float4 main(uint ParticleId : SV_VERTEXID) : SV_POSITION
 	Particle particle = g_rwParticles[ParticleId];
 
 	// Load densities
-	float4 gridData[7];
+	GridType gridData[7];
 	const float3 texel = 1.0 / GRID_SIZE_FHF;
 	const float3 tex = SimulationToGridTexSpace(particle.Pos);
 	LoadGrid(gridData, tex, texel);
-	const float density = gridData[C].w > 0.0 ? gridData[C].w : g_restDensity;
+	const float density = gridData[C].RHO > 0.0 ? gridData[C].RHO : g_restDensity;
 	const float3 pressGrad = CalculateGradPressure(gridData);
+#if COMPUTE_VISCOSITY
 	const float3 velocityLaplace = CalculateVelocityLaplace(gridData);
+#endif
 
 	float3 acceleration = -pressGrad;
+#if COMPUTE_VISCOSITY
 	acceleration += g_viscosity * velocityLaplace;
+#endif
 	acceleration /= density;
 
 	// Update particle
@@ -198,24 +212,24 @@ float4 main(uint ParticleId : SV_VERTEXID) : SV_POSITION
 				if (r_sq < g_h_sq)
 				{
 					const float rho = CalculateDensity(r_sq);
-#if 1
+#if COMPUTE_VISCOSITY
 					const float3 velocity = CalculateVelocity(r_sq, particle.Velocity, density);
 					uint rhoEnc = 0xffffffff;
 					for (uint k = 0; k < 0xffffffff && rhoEnc == 0xffffffff; ++k)
 					{
-						InterlockedExchange(g_rwDensity[i], 0xffffffff, rhoEnc);
+						InterlockedExchange(g_rwDensityU[i], 0xffffffff, rhoEnc);
 						DeviceMemoryBarrier();
 						if (rhoEnc != 0xffffffff)
 						{
 							// Critical section
-							g_rwDensity[i] = asuint(asfloat(rhoEnc) + rho);
+							g_rwDensityU[i] = asuint(asfloat(rhoEnc) + rho);
 							g_rwVelocity[0][i] += velocity.x;
 							g_rwVelocity[1][i] += velocity.y;
 							g_rwVelocity[2][i] += velocity.z;
 						}
 					}
 #else
-					InterlockedAdd(g_rwDensity[i], rho * 1000.0);
+					InterlockedAdd(g_rwDensityU[i], rho * 1000.0);
 #endif
 				}
 			}
