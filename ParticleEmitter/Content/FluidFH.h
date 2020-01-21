@@ -27,7 +27,7 @@ protected:
 	enum CbvUavSrvTable : uint8_t
 	{
 		CBV_UAV_SRV_TABLE_PARTICLE,
-		CBV_UAV_SRV_TABLE_DENSITY,
+		CBV_UAV_SRV_TABLE_TRANSFER,
 
 		NUM_CBV_UAV_SRV_TABLE
 	};
@@ -37,7 +37,9 @@ protected:
 		float SmoothRadius;
 		float PressureStiffness;
 		float RestDensity;
+		float Viscosity;
 		float DensityCoef;
+		float VelocityCoef;
 	};
 
 	bool createPipelineLayouts();
@@ -60,6 +62,7 @@ protected:
 
 	XUSG::Texture3D			m_grid;
 	XUSG::Texture3D			m_density;
+	XUSG::Texture3D			m_velocity[3];
 	XUSG::ConstantBuffer	m_cbSimulation;
 
 	CBSimulation			m_cbSimulationData;

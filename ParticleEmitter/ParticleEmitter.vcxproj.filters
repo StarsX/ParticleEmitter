@@ -300,7 +300,7 @@
     <FxCompile Include="Content\Shaders\VSParticleFHF.hlsl">
       <Filter>Shaders\FastHybridFluid</Filter>
     </FxCompile>
-    <FxCompile Include="Content\Shaders\CSDensityFHF.hlsl">
+    <FxCompile Include="Content\Shaders\CSTransferFHF.hlsl">
       <Filter>Shaders\FastHybridFluid</Filter>
     </FxCompile>
   </ItemGroup>

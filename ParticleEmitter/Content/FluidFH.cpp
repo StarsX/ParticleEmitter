@@ -34,15 +34,28 @@ bool FluidFH::Init(const CommandList& commandList, uint32_t numParticles,
 
 	const float mass = 1310.72f / numParticles;
 	m_cbSimulationData.DensityCoef = mass * 315.0f / (64.0f * XM_PI * pow(m_cbSimulationData.SmoothRadius, 9.0f));
+	m_cbSimulationData.VelocityCoef = mass * 15.0f / (2.0f * XM_PI * pow(m_cbSimulationData.SmoothRadius, 3.0f));
+	m_cbSimulationData.Viscosity = 0.1f;
 	
 	// Create resources
 	N_RETURN(m_grid.Create(m_device, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
-		Format::R32_UINT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1,
-		MemoryType::DEFAULT, L"Grid3D"), false);
+		Format::R16G16B16A16_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS |
+		ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS, 1, MemoryType::DEFAULT,
+		L"VelocityDensity"), false);
 	N_RETURN(m_density.Create(m_device, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
-		Format::R16_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS |
-		ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS, 1,
-		MemoryType::DEFAULT, L"Density3D"), false);
+		Format::R32_UINT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1,
+		MemoryType::DEFAULT, L"EncodedDensity"), false);
+	{
+		N_RETURN(m_velocity[0].Create(m_device, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
+			Format::R32_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, MemoryType::DEFAULT,
+			L"VelocityX"), false);
+		N_RETURN(m_velocity[1].Create(m_device, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
+			Format::R32_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, MemoryType::DEFAULT,
+			L"VelocityY"), false);
+		N_RETURN(m_velocity[2].Create(m_device, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
+			Format::R32_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, MemoryType::DEFAULT,
+			L"VelocityZ"), false);
+	}
 
 	N_RETURN(m_cbSimulation.Create(m_device, sizeof(CBSimulation), 1,
 		nullptr, MemoryType::DEFAULT, L"CbSimultionFHF"), false);
@@ -62,14 +75,17 @@ void FluidFH::UpdateFrame()
 {
 	// Set barriers with promotions
 	ResourceBarrier barrier;
-	m_density.SetBarrier(&barrier, ResourceState::NON_PIXEL_SHADER_RESOURCE);
+	m_grid.SetBarrier(&barrier, ResourceState::NON_PIXEL_SHADER_RESOURCE);
 }
 
 void FluidFH::Simulate(const CommandList& commandList)
 {
-	ResourceBarrier barriers[2];
-	auto numBarriers = m_grid.SetBarrier(barriers, ResourceState::NON_PIXEL_SHADER_RESOURCE);
+	ResourceBarrier barriers[5];
+	auto numBarriers = m_grid.SetBarrier(barriers, ResourceState::UNORDERED_ACCESS);
 	numBarriers = m_density.SetBarrier(barriers, ResourceState::UNORDERED_ACCESS, numBarriers);
+	numBarriers = m_velocity[0].SetBarrier(barriers, ResourceState::UNORDERED_ACCESS, numBarriers);
+	numBarriers = m_velocity[1].SetBarrier(barriers, ResourceState::UNORDERED_ACCESS, numBarriers);
+	numBarriers = m_velocity[2].SetBarrier(barriers, ResourceState::UNORDERED_ACCESS, numBarriers);
 	commandList.Barrier(numBarriers, barriers);
 
 	// Set pipeline state
@@ -77,16 +93,9 @@ void FluidFH::Simulate(const CommandList& commandList)
 	commandList.SetPipelineState(m_pipeline);
 
 	// Set descriptor tables
-	commandList.SetComputeDescriptorTable(0, m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_DENSITY]);
+	commandList.SetComputeDescriptorTable(0, m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_TRANSFER]);
 
 	commandList.Dispatch(DIV_UP(GRID_SIZE_FHF, 8), DIV_UP(GRID_SIZE_FHF, 8), GRID_SIZE_FHF);
-
-	// Clear grid
-	const uint32_t clear[4] = {};
-	numBarriers = m_grid.SetBarrier(barriers, ResourceState::UNORDERED_ACCESS);
-	commandList.Barrier(numBarriers, barriers);
-	commandList.ClearUnorderedAccessViewUint(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_PARTICLE], m_grid.GetUAV(),
-		m_grid.GetResource(), clear);
 }
 
 const DescriptorTable& FluidFH::GetDescriptorTable() const
@@ -96,13 +105,12 @@ const DescriptorTable& FluidFH::GetDescriptorTable() const
 
 bool FluidFH::createPipelineLayouts()
 {
-	// Density
+	// Transfer
 	{
 		Util::PipelineLayout pipelineLayout;
-		pipelineLayout.SetRange(0, DescriptorType::SRV, 1, 0);
-		pipelineLayout.SetRange(0, DescriptorType::UAV, 1, 0);
+		pipelineLayout.SetRange(0, DescriptorType::UAV, 5, 0);
 		X_RETURN(m_pipelineLayout, pipelineLayout.GetPipelineLayout(m_pipelineLayoutCache,
-			PipelineLayoutFlag::NONE, L"DensityFastHybridLayout"), false);
+			PipelineLayoutFlag::NONE, L"TransferLayout"), false);
 	}
 
 	return true;
@@ -112,14 +120,14 @@ bool FluidFH::createPipelines()
 {
 	auto csIndex = 0u;
 
-	// Density
+	// Transfer
 	{
-		N_RETURN(m_shaderPool.CreateShader(Shader::Stage::CS, csIndex, L"CSDensityFHF.cso"), false);
+		N_RETURN(m_shaderPool.CreateShader(Shader::Stage::CS, csIndex, L"CSTransferFHF.cso"), false);
 
 		Compute::State state;
 		state.SetPipelineLayout(m_pipelineLayout);
 		state.SetShader(m_shaderPool.GetShader(Shader::Stage::CS, csIndex++));
-		X_RETURN(m_pipeline, state.GetPipeline(m_computePipelineCache, L"Density"), false);
+		X_RETURN(m_pipeline, state.GetPipeline(m_computePipelineCache, L"Transfer"), false);
 	}
 
 	return true;
@@ -132,9 +140,8 @@ bool FluidFH::createDescriptorTables()
 		Util::DescriptorTable cbvUavSrvTable;
 		const Descriptor descriptors[] =
 		{
-			m_grid.GetUAV(),
-			m_density.GetSRV(),
-			m_cbSimulation.GetCBV()
+			m_cbSimulation.GetCBV(),
+			m_grid.GetSRV()
 		};
 		cbvUavSrvTable.SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
 		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_PARTICLE], cbvUavSrvTable.GetCbvSrvUavTable(*m_descriptorTableCache), false);
@@ -144,11 +151,14 @@ bool FluidFH::createDescriptorTables()
 		Util::DescriptorTable uavSrvTable;
 		const Descriptor descriptors[] =
 		{
-			m_grid.GetSRV(),
-			m_density.GetUAV()
+			m_density.GetUAV(),
+			m_velocity[0].GetUAV(),
+			m_velocity[1].GetUAV(),
+			m_velocity[2].GetUAV(),
+			m_grid.GetUAV()
 		};
 		uavSrvTable.SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_DENSITY], uavSrvTable.GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_TRANSFER], uavSrvTable.GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
 	return true;
