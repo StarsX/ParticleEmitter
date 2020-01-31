@@ -32,7 +32,7 @@ cbuffer cbPerObject
 	matrix	g_viewProj;
 };
 
-static const float g_fullLife = 1.0;
+static const float g_fullLife = 0.5;
 
 //--------------------------------------------------------------------------------------
 // Buffers
@@ -56,7 +56,7 @@ uint rand(inout uint seed)
 	return (seed >> 0x10) & RAND_MAX;
 }
 
-uint rand(uint2 seed, uint range)
+uint rand(inout uint2 seed, uint range)
 {
 	return (rand(seed.x) | (rand(seed.y) << 16)) % range;
 }
@@ -64,7 +64,7 @@ uint rand(uint2 seed, uint range)
 Particle Emit(uint particleId, Particle particle)
 {
 	// Load emitter with a random index
-	const uint2 seed = { particleId, g_baseSeed };
+	uint2 seed = { particleId, g_baseSeed };
 	const uint emitterIdx = rand(seed, g_numEmitters);
 	const Emitter emitter = g_roEmitters[emitterIdx];
 	const float3 barycoord = { emitter.Barycoord, 1.0 - (emitter.Barycoord.x + emitter.Barycoord.y) };
@@ -81,7 +81,7 @@ Particle Emit(uint particleId, Particle particle)
 	const float3 posPrev = WorldToSimulationSpace(mul(float4(pos, 1.0), g_worldPrev).xyz);
 	particle.Pos = WorldToSimulationSpace(mul(float4(pos, 1.0), g_world).xyz);
 	particle.Velocity = (particle.Pos - posPrev) / g_timeStep;
-	particle.LifeTime = g_fullLife;
+	particle.LifeTime = g_fullLife + rand(seed, 1000) / 1000.0f;
 
 	return particle;
 }

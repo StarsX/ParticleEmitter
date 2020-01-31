@@ -115,8 +115,9 @@ float3 CalculateVelocity(float r_sq, float3 velocity, float density)
 	// Implements this equation:
 	// W_viscosity(r, h) = 15 / (2 * pi * h^3) * (-r^3 / (2 * h^3) + r^2 / h^2 + h / (2 * r) - 1)
 	// g_velocityCoef = particleMass * 15 / (2 * pi * g_smoothRadius^3)
+	const float df = -r_cb / (2.0 * g_h_cb) + r_sq / g_h_sq + g_smoothRadius / (2.0 * r) - 1.0;
 
-	return g_velocityCoef * (-r_cb / (2.0 * g_h_cb) + r_sq / g_h_sq + g_smoothRadius / (2.0 * r) - 1.0) / density;
+	return g_velocityCoef * df * velocity / density;
 }
 
 //--------------------------------------------------------------------------------------
