@@ -17,6 +17,9 @@ RWBuffer<uint>	g_rwOffsets;
 StructuredBuffer<Particle>	g_roParticles;
 Buffer<float3>	g_roForces;
 
+//--------------------------------------------------------------------------------------
+// Vertex shader of particle integration or emission for SPH
+//--------------------------------------------------------------------------------------
 float4 main(uint ParticleId : SV_VERTEXID) : SV_POSITION
 {
 	// Load particle
@@ -24,7 +27,7 @@ float4 main(uint ParticleId : SV_VERTEXID) : SV_POSITION
 	const float3 acceleration = g_roForces[ParticleId];
 
 	// Update particle
-	const float4 svPos = Update(ParticleId, particle, acceleration);
+	const float4 svPos = UpdateParticleForVS(ParticleId, particle, acceleration);
 
 	// Build grid
 	const uint cellIdx = GridGetCellIndexWithPosition(particle.Pos);

@@ -18,7 +18,8 @@ const wchar_t* ParticleEmitter::SimulationMethodDescs[] =
 {
 	L"No internal force simulation",
 	L"Smooth Particle Hydrodynamics",
-	L"Fast particle-grid hybrid fluid"
+	L"Fast particle-grid hybrid fluid",
+	L"Fast particle-grid hybrid smoke"
 };
 
 const float g_FOVAngleY = XM_PIDIV4;
@@ -193,7 +194,7 @@ void ParticleEmitter::LoadAssets()
 	// Create fast hybrid fluid simulator
 	m_fluidFH = make_unique<FluidFH>(m_device);
 	if (!m_fluidFH) ThrowIfFailed(E_FAIL);
-	if (!m_fluidFH->Init(m_commandList, numParticles, m_descriptorTableCache, uploaders))
+	if (!m_fluidFH->Init(m_commandList, numParticles, m_descriptorTableCache, uploaders, Format::B8G8R8A8_UNORM))
 		ThrowIfFailed(E_FAIL);
 
 #if defined(_DEBUG)
@@ -453,6 +454,12 @@ void ParticleEmitter::PopulateCommandList()
 		m_emitter->RenderFHF(m_commandList, m_renderTargets[m_frameIndex].GetRTV(), &m_depth.GetDSV(),
 			m_fluidFH->GetDescriptorTable(), m_renderer->GetWorld());
 		m_fluidFH->Simulate(m_commandList);
+		break;
+	case FAST_HYBRID_SMOKE:
+		m_emitter->ParticleFHS(m_commandList, m_fluidFH->GetDescriptorTable(false), m_renderer->GetWorld());
+		m_fluidFH->Simulate(m_commandList, false);
+		m_fluidFH->RayCast(m_commandList, m_width, m_height, XMLoadFloat3(&m_eyePt),
+			XMLoadFloat4x4(&m_view) * XMLoadFloat4x4(&m_proj));
 		break;
 	default:
 		m_emitter->Render(m_commandList, m_renderTargets[m_frameIndex].GetRTV(),

@@ -61,6 +61,9 @@ uint rand(inout uint2 seed, uint range)
 	return (rand(seed.x) | (rand(seed.y) << 16)) % range;
 }
 
+//--------------------------------------------------------------------------------------
+// Common particle emission
+//--------------------------------------------------------------------------------------
 Particle Emit(uint particleId, Particle particle)
 {
 	// Load emitter with a random index
@@ -86,6 +89,9 @@ Particle Emit(uint particleId, Particle particle)
 	return particle;
 }
 
+//--------------------------------------------------------------------------------------
+// Particle emission
+//--------------------------------------------------------------------------------------
 [numthreads(64, 1, 1)]
 void main(uint DTid : SV_DispatchThreadID)
 {

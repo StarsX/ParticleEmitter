@@ -280,8 +280,12 @@ void ComputeUtil::VerifyPrefixSum(uint32_t numElements)
 	for (size_t i = 1; i < numElements; ++i) \
 		groundTruths[i] = groundTruths[i - 1] + reinterpret_cast<const T*>(pTestData)[i - 1]
 
+#ifndef COMPARE
+#define COMPARE(T) COMPARE_AND_SHOW(T, false)
+#endif
+
 	// Verify results
-#define COMPARE(T) \
+#define COMPARE_AND_SHOW(T, A) \
 	const auto testResults = reinterpret_cast<const T*>(m_readBack->Map(nullptr)); \
 	for (size_t i = 0; i < numElements; ++i) \
 	{ \
@@ -290,12 +294,12 @@ void ComputeUtil::VerifyPrefixSum(uint32_t numElements)
 			reinterpret_cast<const T*>(pTestData)[i] << \
 			"), result (" << testResults[i] << "), ground truth (" << \
 			groundTruths[i] << ")" << endl; \
-		else \
+		else if (A)\
 			cout << "Correct " << i << ": input (" << \
 			reinterpret_cast<const T*>(pTestData)[i] << \
 			"), result (" << testResults[i] << "), ground truth (" << \
 			groundTruths[i] << ")" << endl; \
-		if (i % 1024 == 1023) system("pause"); \
+		if (i % 1024 == 1023 && A) system("pause"); \
 	}
 
 #define VERIFY(T) GENERATE_GROUND_TRUTH(T); COMPARE(T)
@@ -344,6 +348,7 @@ void ComputeUtil::VerifyPrefixSum(uint32_t numElements)
 	m_readBack->Unmap();
 
 #undef VERIFY
+#undef COMPARE_AND_SHOW
 #undef COMPARE
 #undef GENERATE_GROUND_TRUTH
 }

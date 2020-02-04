@@ -279,6 +279,35 @@ void Emitter::RenderFHF(const CommandList& commandList, const Descriptor& rtv,
 	commandList.Draw(m_cbParticle.NumParticles, 1, 0, 0);
 }
 
+void Emitter::ParticleFHS(const CommandList& commandList,
+	const DescriptorTable& fluidDescriptorTable,
+	const XMFLOAT4X4& world)
+{
+	m_cbParticle.WorldPrev = m_cbParticle.World;
+	m_cbParticle.World = world;
+	m_cbParticle.BaseSeed = rand();
+
+	const DescriptorPool descriptorPools[] =
+	{
+		m_descriptorTableCache->GetDescriptorPool(CBV_SRV_UAV_POOL),
+		m_descriptorTableCache->GetDescriptorPool(SAMPLER_POOL)
+	};
+	commandList.SetDescriptorPools(static_cast<uint32_t>(size(descriptorPools)), descriptorPools);
+
+	// Set pipeline state
+	commandList.SetComputePipelineLayout(m_pipelineLayouts[PARTICLE_FHS]);
+	commandList.SetPipelineState(m_pipelines[PARTICLE_FHS]);
+
+	// Set descriptor tables
+	commandList.SetCompute32BitConstants(0, SizeOfInUint32(m_cbParticle), &m_cbParticle);
+	commandList.SetComputeDescriptorTable(1, m_srvTable);
+	commandList.SetComputeDescriptorTable(2, m_uavTables[UAV_TABLE_PARTICLE]);
+	commandList.SetComputeDescriptorTable(3, fluidDescriptorTable);
+	commandList.SetComputeDescriptorTable(4, m_samplerTable);
+
+	commandList.Dispatch(DIV_UP(m_cbParticle.NumParticles, 64), 1, 1);
+}
+
 void Emitter::Visualize(const CommandList& commandList, const Descriptor& rtv,
 	const Descriptor* pDsv, const XMFLOAT4X4& worldViewProj)
 {
@@ -363,6 +392,20 @@ bool Emitter::createPipelineLayouts()
 		pipelineLayout.SetShaderStage(4, Shader::Stage::VS);
 		X_RETURN(m_pipelineLayouts[PARTICLE_FHF], pipelineLayout.GetPipelineLayout(m_pipelineLayoutCache,
 			PipelineLayoutFlag::NONE, L"ParticleFHFLayout"), false);
+	}
+
+	// Particle emission and integration for fast hybrid smoke
+	{
+		Util::PipelineLayout pipelineLayout;
+		pipelineLayout.SetConstants(0, SizeOfInUint32(CBParticle), 0, 0, Shader::Stage::CS);
+		pipelineLayout.SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorRangeFlag::DATA_STATIC);
+		pipelineLayout.SetRange(2, DescriptorType::UAV, 1, 0);
+		pipelineLayout.SetRange(3, DescriptorType::CBV, 1, 1);
+		pipelineLayout.SetRange(3, DescriptorType::SRV, 1, 2);
+		pipelineLayout.SetRange(3, DescriptorType::UAV, 1, 1);
+		pipelineLayout.SetRange(4, DescriptorType::SAMPLER, 1, 0);
+		X_RETURN(m_pipelineLayouts[PARTICLE_FHS], pipelineLayout.GetPipelineLayout(m_pipelineLayoutCache,
+			PipelineLayoutFlag::NONE, L"ParticleFHSLayout"), false);
 	}
 
 	// Particle emission
@@ -456,6 +499,16 @@ bool Emitter::createPipelines(const InputLayout& inputLayout, Format rtFormat, F
 		state.OMSetRTVFormat(0, rtFormat);
 		state.OMSetDSVFormat(dsFormat);
 		X_RETURN(m_pipelines[PARTICLE_FHF], state.GetPipeline(m_graphicsPipelineCache, L"ParticleFHF"), false);
+	}
+
+	// Particle emission and integration for fast hybrid smoke
+	{
+		N_RETURN(m_shaderPool.CreateShader(Shader::Stage::CS, csIndex, L"CSParticleFHS.cso"), false);
+
+		Compute::State state;
+		state.SetPipelineLayout(m_pipelineLayouts[PARTICLE_FHS]);
+		state.SetShader(m_shaderPool.GetShader(Shader::Stage::CS, csIndex++));
+		X_RETURN(m_pipelines[PARTICLE_FHS], state.GetPipeline(m_computePipelineCache, L"ParticleFHS"), false);
 	}
 
 	// Particle emission

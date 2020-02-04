@@ -32,7 +32,10 @@ public:
 		const XUSG::Descriptor* pDsv, const XUSG::DescriptorTable& fluidDescriptorTable,
 		const DirectX::XMFLOAT4X4& world);
 	void RenderFHF(const XUSG::CommandList& commandList, const XUSG::Descriptor& rtv,
-		const XUSG::Descriptor* pDsv, const XUSG::DescriptorTable& buildGridDescriptorTable,
+		const XUSG::Descriptor* pDsv, const XUSG::DescriptorTable& fluidDescriptorTable,
+		const DirectX::XMFLOAT4X4& world);
+	void ParticleFHS(const XUSG::CommandList& commandList,
+		const XUSG::DescriptorTable& fluidDescriptorTable,
 		const DirectX::XMFLOAT4X4& world);
 	void Visualize(const XUSG::CommandList& commandList, const XUSG::Descriptor& rtv,
 		const XUSG::Descriptor* pDsv, const DirectX::XMFLOAT4X4& worldViewProj);
@@ -54,6 +57,7 @@ protected:
 		PARTICLE,
 		PARTICLE_SPH,
 		PARTICLE_FHF,
+		PARTICLE_FHS,
 		EMISSION,
 		VISUALIZE,
 

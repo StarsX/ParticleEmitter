@@ -170,7 +170,14 @@ float3 CalculateVelocityLaplace(float4 gridData[7])
 	return velocityLaplace;
 }
 
-float4 main(uint ParticleId : SV_VERTEXID) : SV_POSITION
+//--------------------------------------------------------------------------------------
+// Particle integration or emission for fast hybrid fluid
+//--------------------------------------------------------------------------------------
+#if FOR_CS
+void UpdateParticleFHF(uint ParticleId)
+#else
+float4 UpdateParticleFHF(uint ParticleId)
+#endif
 {
 	// Load particle
 	Particle particle = g_rwParticles[ParticleId];
@@ -193,7 +200,11 @@ float4 main(uint ParticleId : SV_VERTEXID) : SV_POSITION
 	acceleration /= density;
 
 	// Update particle
-	const float4 svPos = Update(ParticleId, particle, acceleration);
+#if FOR_CS
+	UpdateParticle(ParticleId, particle, acceleration);
+#else
+	const float4 svPos = UpdateParticleForVS(ParticleId, particle, acceleration);
+#endif
 
 	// Clamp range of cells
 	const uint3 cell = SimulationToGridTexSpace(particle.Pos) * GRID_SIZE_FHF;
@@ -237,5 +248,17 @@ float4 main(uint ParticleId : SV_VERTEXID) : SV_POSITION
 		}
 	}
 
+#if !FOR_CS
 	return svPos;
+#endif
 }
+
+//--------------------------------------------------------------------------------------
+// Vertex shader of particle integration or emission for fast hybrid fluid
+//--------------------------------------------------------------------------------------
+#if !FOR_CS
+float4 main(uint ParticleId : SV_VERTEXID) : SV_POSITION
+{
+	return UpdateParticleFHF(ParticleId);
+}
+#endif

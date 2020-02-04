@@ -51,8 +51,15 @@ void Renderer::UpdateFrame(double time, float timeStep, const XMFLOAT4& posScale
 		angle += !isPaused ? speed * timeStep * XM_PI / 180.0f : 0.0f;
 		const auto rot = XMMatrixRotationY(angle);
 
+		auto movSpeed = XM_PI * 0.25f;
+		movSpeed = (min)(movSpeed / sqrt(speed), movSpeed);
+		XMFLOAT3 pos(posScale.x, posScale.y, posScale.z);
+		pos.x += static_cast<float>(cos(time * movSpeed)) * 4.0f;
+		pos.z += static_cast<float>(sin(time * movSpeed)) * 4.0f;
+		pos.y += static_cast<float>(sin(time * movSpeed) * 0.5 + 0.5) * 4.0f;
+
 		const auto world = XMMatrixScaling(posScale.w, posScale.w, posScale.w) * rot *
-			XMMatrixTranslation(posScale.x, posScale.y, posScale.z);
+			XMMatrixTranslation(pos.x, pos.y, pos.z);
 
 		m_cbBasePass.WorldViewProjPrev = m_cbBasePass.WorldViewProj;
 		XMStoreFloat4x4(&m_cbBasePass.WorldViewProj, XMMatrixTranspose(world * viewProj));
