@@ -65,7 +65,7 @@ void main(uint DTid : SV_DispatchThreadID)
 	float3 acceleration = 0.0;
 
 	// Clamp range of cells
-	const uint3 startCell = max(cellPos - 1, 0);
+	const uint3 startCell = max(cellPos, 1) - 1;
 	const uint3 endCell = min(cellPos + 1, GRID_SIZE_SPH - 1);
 
 	// Calculate the acceleration based on neighbors from the 8 adjacent cells + current cell

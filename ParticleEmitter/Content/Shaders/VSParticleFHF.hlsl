@@ -208,7 +208,7 @@ float4 UpdateParticleFHF(uint ParticleId)
 
 	// Clamp range of cells
 	const uint3 cell = SimulationToGridTexSpace(particle.Pos) * GRID_SIZE_FHF;
-	const uint3 startCell = max(cell - 1, 0);
+	const uint3 startCell = max(cell, 1) - 1;
 	const uint3 endCell = min(cell + 1, GRID_SIZE_FHF - 1);
 
 	// Calculate the density based on neighbors from the 8 adjacent cells + current cell
