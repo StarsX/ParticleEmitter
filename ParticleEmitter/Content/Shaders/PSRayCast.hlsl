@@ -106,10 +106,10 @@ min16float GetSample(float3 tex, float level)
 
 float CalculateLevelOfDetail(float3 step)
 {
-	float3 dim;
-	g_txGrid.GetDimensions(dim.x, dim.y, dim.z);
+	float3 gridSize;
+	g_txGrid.GetDimensions(gridSize.x, gridSize.y, gridSize.z);
 
-	const float3 m = abs(step * dim);
+	const float3 m = abs(step * gridSize);
 	const float rho = max(max(m.x, m.y), m.z);
 	
 	return log(rho);

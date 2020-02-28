@@ -16,9 +16,9 @@ SamplerState		g_smpLinear;
 [numthreads(4, 4, 4)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
-	float3 dim;
-	g_rwDst.GetDimensions(dim.x, dim.y, dim.z);
-	const float3 tex = (DTid + 0.5) / dim;
+	float3 gridSize;
+	g_rwDst.GetDimensions(gridSize.x, gridSize.y, gridSize.z);
+	const float3 tex = (DTid + 0.5) / gridSize;
 
 	g_rwDst[DTid] = g_txSrc.SampleLevel(g_smpLinear, tex, 0);
 }
