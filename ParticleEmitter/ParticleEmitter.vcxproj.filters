@@ -40,15 +40,6 @@
     <Filter Include="XUSG\Core\Header Files">
       <UniqueIdentifier>{6a7b3215-b154-4774-a7f3-e64791563094}</UniqueIdentifier>
     </Filter>
-    <Filter Include="XUSG\Advanced">
-      <UniqueIdentifier>{b41a6e61-743f-423b-9582-d5c89d629022}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="XUSG\Advanced\Header Files">
-      <UniqueIdentifier>{7958704f-94f8-454d-9cc3-153916c200a8}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="XUSG\Advanced\Source Files">
-      <UniqueIdentifier>{de199865-45a6-477c-a64f-3b5d927d84df}</UniqueIdentifier>
-    </Filter>
     <Filter Include="XUSG\Optional">
       <UniqueIdentifier>{91cfda93-cfa6-4ae9-a9f5-a280770eb7dd}</UniqueIdentifier>
     </Filter>
@@ -132,9 +123,6 @@
     <ClInclude Include="Common\dds.h">
       <Filter>Common\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="XUSG\Advanced\XUSGDDSLoader.h">
-      <Filter>XUSG\Advanced\Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Content\Renderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -199,9 +187,6 @@
     </ClCompile>
     <ClCompile Include="Main.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="XUSG\Advanced\XUSGDDSLoader.cpp">
-      <Filter>XUSG\Advanced\Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Content\Renderer.cpp">
       <Filter>Source Files</Filter>
