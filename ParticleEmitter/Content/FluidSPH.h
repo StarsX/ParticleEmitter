@@ -14,12 +14,12 @@ public:
 	FluidSPH(const XUSG::Device& device);
 	virtual ~FluidSPH();
 
-	bool Init(const XUSG::CommandList& commandList, uint32_t numParticles,
+	bool Init(XUSG::CommandList* pCommandList, uint32_t numParticles,
 		std::shared_ptr<XUSG::DescriptorTableCache> descriptorTableCache,
-		XUSG::StructuredBuffer* pParticleBuffers);
+		XUSG::StructuredBuffer::uptr* pParticleBuffers);
 	
 	void UpdateFrame();
-	void Simulate(const XUSG::CommandList& commandList);
+	void Simulate(const XUSG::CommandList* pCommandList);
 
 	const XUSG::DescriptorTable& GetDescriptorTable() const;
 
@@ -73,16 +73,16 @@ protected:
 	bool createPipelines();
 	bool createDescriptorTables();
 
-	void rearrange(const XUSG::CommandList& commandList);
-	void density(const XUSG::CommandList& commandList);
-	void force(const XUSG::CommandList& commandList);
+	void rearrange(const XUSG::CommandList* pCommandList);
+	void density(const XUSG::CommandList* pCommandList);
+	void force(const XUSG::CommandList* pCommandList);
 
 	XUSG::Device m_device;
 
-	XUSG::ShaderPool				m_shaderPool;
-	XUSG::Compute::PipelineCache	m_computePipelineCache;
-	XUSG::PipelineLayoutCache		m_pipelineLayoutCache;
-	std::shared_ptr<XUSG::DescriptorTableCache> m_descriptorTableCache;
+	XUSG::ShaderPool::uptr				m_shaderPool;
+	XUSG::Compute::PipelineCache::uptr	m_computePipelineCache;
+	XUSG::PipelineLayoutCache::uptr		m_pipelineLayoutCache;
+	XUSG::DescriptorTableCache::sptr	m_descriptorTableCache;
 
 	XUSG::ComputeUtil		m_prefixSumUtil;
 
@@ -93,12 +93,12 @@ protected:
 	XUSG::DescriptorTable	m_uavTables[NUM_UAV_TABLE];
 	XUSG::DescriptorTable	m_srvTables[NUM_SRV_TABLE];
 
-	XUSG::TypedBuffer		m_gridBuffer;
-	XUSG::TypedBuffer		m_offsetBuffer;
-	XUSG::TypedBuffer		m_densityBuffer;
-	XUSG::TypedBuffer		m_forceBuffer;
+	XUSG::TypedBuffer::uptr	m_gridBuffer;
+	XUSG::TypedBuffer::uptr	m_offsetBuffer;
+	XUSG::TypedBuffer::uptr	m_densityBuffer;
+	XUSG::TypedBuffer::uptr	m_forceBuffer;
 
-	XUSG::StructuredBuffer*	m_pParticleBuffers;
+	XUSG::StructuredBuffer::uptr* m_pParticleBuffers;
 
 	CBSimulation			m_cbSimulationData;
 };

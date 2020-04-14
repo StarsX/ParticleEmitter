@@ -15,13 +15,13 @@ namespace XUSG
 		ComputeUtil(const Device& device);
 		virtual ~ComputeUtil();
 
-		bool SetPrefixSum(const CommandList& commandList, bool safeMode,
+		bool SetPrefixSum(CommandList* pCommandList, bool safeMode,
 			std::shared_ptr<DescriptorTableCache> descriptorTableCache,
 			TypedBuffer* pBuffer, std::vector<Resource>* pUploaders = nullptr,
 			Format format = Format::R32_UINT, uint32_t maxElementCount = 4096);
 
 		void SetDevice(const Device& device);
-		void PrefixSum(const CommandList& commandList, uint32_t numElements = UINT32_MAX);
+		void PrefixSum(const CommandList* pCommandList, uint32_t numElements = UINT32_MAX);
 		void VerifyPrefixSum(uint32_t numElements = UINT32_MAX);
 
 	protected:
@@ -59,17 +59,17 @@ namespace XUSG
 
 		Format					m_format;
 
-		ShaderPool				m_shaderPool;
-		Compute::PipelineCache	m_computePipelineCache;
-		PipelineLayoutCache		m_pipelineLayoutCache;
-		std::shared_ptr<DescriptorTableCache> m_descriptorTableCache;
+		XUSG::ShaderPool::uptr				m_shaderPool;
+		XUSG::Compute::PipelineCache::uptr	m_computePipelineCache;
+		XUSG::PipelineLayoutCache::uptr		m_pipelineLayoutCache;
+		XUSG::DescriptorTableCache::sptr	m_descriptorTableCache;
 
 		PipelineLayout			m_pipelineLayouts[NUM_PIPELINE];
 		Pipeline				m_pipelines[NUM_PIPELINE];
 
-		TypedBuffer				m_counter;
-		std::unique_ptr<TypedBuffer> m_testBuffer;
-		std::unique_ptr<TypedBuffer> m_readBack;
+		TypedBuffer::uptr		m_counter;
+		TypedBuffer::uptr		m_testBuffer;
+		TypedBuffer::uptr		m_readBack;
 		TypedBuffer*			m_pBuffer;
 
 		DescriptorTable			m_uavTables[NUM_UAV_TABLE];

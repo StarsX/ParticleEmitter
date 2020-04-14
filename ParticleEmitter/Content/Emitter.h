@@ -13,34 +13,34 @@ public:
 	Emitter(const XUSG::Device &device);
 	virtual ~Emitter();
 
-	bool Init(const XUSG::CommandList &commandList, uint32_t numParticles,
+	bool Init(XUSG::CommandList* pCommandList, uint32_t numParticles,
 		std::shared_ptr<XUSG::DescriptorTableCache> descriptorTableCache,
 		std::vector<XUSG::Resource> &uploaders, const XUSG::InputLayout& inputLayout,
 		XUSG::Format rtFormat, XUSG::Format dsFormat);
-	bool SetEmitterCount(const XUSG::CommandList& commandList, XUSG::RawBuffer& counter,
+	bool SetEmitterCount(const XUSG::CommandList* pCommandList, XUSG::RawBuffer& counter,
 		XUSG::Resource* pEmitterSource);
 
 	void UpdateFrame(double time, float timeStep, const DirectX::CXMMATRIX viewProj);
-	void Distribute(const XUSG::CommandList& commandList, const XUSG::RawBuffer& counter,
+	void Distribute(const XUSG::CommandList* pCommandList, const XUSG::RawBuffer& counter,
 		const XUSG::VertexBuffer& vb, const XUSG::IndexBuffer& ib, uint32_t numIndices,
 		float density, float scale);
-	void EmitParticle(const XUSG::CommandList& commandList, uint32_t numParticles,
+	void EmitParticle(const XUSG::CommandList* pCommandList, uint32_t numParticles,
 		const XUSG::DescriptorTable& uavTable, const DirectX::XMFLOAT4X4& world);
-	void Render(const XUSG::CommandList& commandList, const XUSG::Descriptor& rtv,
+	void Render(const XUSG::CommandList* pCommandList, const XUSG::Descriptor& rtv,
 		const XUSG::Descriptor* pDsv, const DirectX::XMFLOAT4X4& world);
-	void RenderSPH(const XUSG::CommandList& commandList, const XUSG::Descriptor& rtv,
+	void RenderSPH(const XUSG::CommandList* pCommandList, const XUSG::Descriptor& rtv,
 		const XUSG::Descriptor* pDsv, const XUSG::DescriptorTable& fluidDescriptorTable,
 		const DirectX::XMFLOAT4X4& world);
-	void RenderFHF(const XUSG::CommandList& commandList, const XUSG::Descriptor& rtv,
+	void RenderFHF(const XUSG::CommandList* pCommandList, const XUSG::Descriptor& rtv,
 		const XUSG::Descriptor* pDsv, const XUSG::DescriptorTable& fluidDescriptorTable,
 		const DirectX::XMFLOAT4X4& world);
-	void ParticleFHS(const XUSG::CommandList& commandList,
+	void ParticleFHS(const XUSG::CommandList* pCommandList,
 		const XUSG::DescriptorTable& fluidDescriptorTable,
 		const DirectX::XMFLOAT4X4& world);
-	void Visualize(const XUSG::CommandList& commandList, const XUSG::Descriptor& rtv,
+	void Visualize(const XUSG::CommandList* pCommandList, const XUSG::Descriptor& rtv,
 		const XUSG::Descriptor* pDsv, const DirectX::XMFLOAT4X4& worldViewProj);
 
-	XUSG::StructuredBuffer* GetParticleBuffers();
+	XUSG::StructuredBuffer::uptr* GetParticleBuffers();
 	
 protected:
 	enum ParticleBufferIndex : uint8_t
@@ -112,16 +112,16 @@ protected:
 	bool createPipelines(const XUSG::InputLayout& inputLayout, XUSG::Format rtFormat, XUSG::Format dsFormat);
 	bool createDescriptorTables();
 
-	void distribute(const XUSG::CommandList& commandList, const XUSG::VertexBuffer& vb,
+	void distribute(const XUSG::CommandList* pCommandList, const XUSG::VertexBuffer& vb,
 		const XUSG::IndexBuffer& ib, uint32_t numIndices, float density, float scale);
 	
 	XUSG::Device m_device;
 
-	XUSG::ShaderPool				m_shaderPool;
-	XUSG::Graphics::PipelineCache	m_graphicsPipelineCache;
-	XUSG::Compute::PipelineCache	m_computePipelineCache;
-	XUSG::PipelineLayoutCache		m_pipelineLayoutCache;
-	std::shared_ptr<XUSG::DescriptorTableCache> m_descriptorTableCache;
+	XUSG::ShaderPool::uptr				m_shaderPool;
+	XUSG::Graphics::PipelineCache::uptr	m_graphicsPipelineCache;
+	XUSG::Compute::PipelineCache::uptr	m_computePipelineCache;
+	XUSG::PipelineLayoutCache::uptr		m_pipelineLayoutCache;
+	XUSG::DescriptorTableCache::sptr	m_descriptorTableCache;
 
 	XUSG::PipelineLayout	m_pipelineLayouts[NUM_PIPELINE];
 	XUSG::Pipeline			m_pipelines[NUM_PIPELINE];
@@ -132,9 +132,9 @@ protected:
 
 	XUSG::Descriptor		m_srvVertexBuffer;
 
-	XUSG::RawBuffer			m_counter;
-	XUSG::StructuredBuffer	m_emitterBuffer;
-	XUSG::StructuredBuffer	m_particleBuffers[NUM_PARTICLE_BUFFER];
+	XUSG::RawBuffer::uptr	m_counter;
+	XUSG::StructuredBuffer::uptr m_emitterBuffer;
+	XUSG::StructuredBuffer::uptr m_particleBuffers[NUM_PARTICLE_BUFFER];
 
 	CBParticle				m_cbParticle;
 	double					m_time;

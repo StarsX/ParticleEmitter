@@ -13,13 +13,13 @@ public:
 	Renderer(const XUSG::Device& device);
 	virtual ~Renderer();
 
-	bool Init(const XUSG::CommandList& commandList, uint32_t width, uint32_t height,
+	bool Init(XUSG::CommandList* pCommandList, uint32_t width, uint32_t height,
 		std::vector<XUSG::Resource>& uploaders, const char* fileName,
 		XUSG::Format rtFormat, XUSG::Format dsFormat);
 
 	void UpdateFrame(double time, float timeStep, const DirectX::XMFLOAT4& posScale,
 		DirectX::CXMMATRIX viewProj, bool isPaused);
-	void Render(const XUSG::CommandList& commandList, const XUSG::Descriptor& rtv,
+	void Render(const XUSG::CommandList* pCommandList, const XUSG::Descriptor& rtv,
 		const XUSG::Descriptor& dsv);
 
 	const XUSG::VertexBuffer& GetVertexBuffer() const;
@@ -37,9 +37,9 @@ protected:
 		DirectX::XMFLOAT4X4	World;
 	};
 
-	bool createVB(const XUSG::CommandList& commandList, uint32_t numVert,
+	bool createVB(XUSG::CommandList* pCommandList, uint32_t numVert,
 		uint32_t stride, const uint8_t* pData, std::vector<XUSG::Resource>& uploaders);
-	bool createIB(const XUSG::CommandList& commandList, uint32_t numIndices,
+	bool createIB(XUSG::CommandList* pCommandList, uint32_t numIndices,
 		const uint32_t* pData, std::vector<XUSG::Resource>& uploaders);
 	bool createInputLayout();
 	bool createPipelineLayouts();
@@ -60,10 +60,10 @@ protected:
 	XUSG::DescriptorTable	m_cbvTable;
 	XUSG::Framebuffer		m_framebuffer;
 
-	XUSG::VertexBuffer		m_vertexBuffer;
-	XUSG::IndexBuffer		m_indexBuffer;
+	XUSG::VertexBuffer::uptr	m_vertexBuffer;
+	XUSG::IndexBuffer::uptr		m_indexBuffer;
 
-	XUSG::ShaderPool				m_shaderPool;
-	XUSG::Graphics::PipelineCache	m_graphicsPipelineCache;
-	XUSG::PipelineLayoutCache		m_pipelineLayoutCache;
+	XUSG::ShaderPool::uptr				m_shaderPool;
+	XUSG::Graphics::PipelineCache::uptr	m_graphicsPipelineCache;
+	XUSG::PipelineLayoutCache::uptr		m_pipelineLayoutCache;
 };

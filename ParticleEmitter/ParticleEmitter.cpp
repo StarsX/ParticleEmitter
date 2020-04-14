@@ -115,7 +115,7 @@ void ParticleEmitter::LoadPipeline()
 	}
 
 	// Create the command queue.
-	N_RETURN(m_device->GetCommandQueue(m_commandQueue, CommandListType::DIRECT, CommandQueueFlags::NONE), ThrowIfFailed(E_FAIL));
+	N_RETURN(m_device->GetCommandQueue(m_commandQueue, CommandListType::DIRECT, CommandQueueFlag::NONE), ThrowIfFailed(E_FAIL));
 
 	// Describe and create the swap chain.
 	DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
@@ -143,37 +143,41 @@ void ParticleEmitter::LoadPipeline()
 	ThrowIfFailed(swapChain.As(&m_swapChain));
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
-	m_descriptorTableCache = make_shared<DescriptorTableCache>(m_device, L"DescriptorTableCache");
+	m_descriptorTableCache = DescriptorTableCache::MakeShared(m_device, L"DescriptorTableCache");
 
 	// Create frame resources.
 	// Create a RTV and a command allocator for each frame.
 	for (auto n = 0u; n < FrameCount; n++)
 	{
-		N_RETURN(m_renderTargets[n].CreateFromSwapChain(m_device, m_swapChain, n), ThrowIfFailed(E_FAIL));
+		m_renderTargets[n] = RenderTarget::MakeUnique();
+		N_RETURN(m_renderTargets[n]->CreateFromSwapChain(m_device, m_swapChain, n), ThrowIfFailed(E_FAIL));
 		N_RETURN(m_device->GetCommandAllocator(m_commandAllocators[n], CommandListType::DIRECT), ThrowIfFailed(E_FAIL));
 	}
 
 	// Create output views
-	m_depth.Create(m_device, m_width, m_height, Format::D24_UNORM_S8_UINT,
+	m_depth = DepthStencil::MakeUnique();
+	m_depth->Create(m_device, m_width, m_height, Format::D24_UNORM_S8_UINT,
 		ResourceFlag::DENY_SHADER_RESOURCE, 1, 1, 1, 1.0f, 0, false, L"Depth");
 }
 
 // Load the sample assets.
 void ParticleEmitter::LoadAssets()
 {
-	RawBuffer counter;
-	N_RETURN(counter.Create(m_device, sizeof(uint32_t), ResourceFlag::DENY_SHADER_RESOURCE,
+	const auto counter = RawBuffer::MakeUnique();
+	N_RETURN(counter->Create(m_device, sizeof(uint32_t), ResourceFlag::DENY_SHADER_RESOURCE,
 		MemoryType::READBACK, 0, nullptr, 0), ThrowIfFailed(E_FAIL));
 
 	// Create the command list.
-	N_RETURN(m_device->GetCommandList(m_commandList.GetCommandList(), 0, CommandListType::DIRECT,
+	m_commandList = CommandList::MakeUnique();
+	N_RETURN(m_device->GetCommandList(m_commandList->GetCommandList(), 0, CommandListType::DIRECT,
 		m_commandAllocators[m_frameIndex], nullptr), ThrowIfFailed(E_FAIL));
 
+	const auto pCommandList = m_commandList.get();
 	vector<Resource> uploaders(0);
 	// Create renderer
 	m_renderer = make_unique<Renderer>(m_device);
 	if (!m_renderer) ThrowIfFailed(E_FAIL);
-	if (!m_renderer->Init(m_commandList, m_width, m_height, uploaders, m_meshFileName.c_str(),
+	if (!m_renderer->Init(pCommandList, m_width, m_height, uploaders, m_meshFileName.c_str(),
 		Format::B8G8R8A8_UNORM, Format::D24_UNORM_S8_UINT))
 		ThrowIfFailed(E_FAIL);
 
@@ -181,20 +185,20 @@ void ParticleEmitter::LoadAssets()
 	const auto numParticles = 1u << 16;
 	m_emitter = make_unique<Emitter>(m_device);
 	if (!m_emitter) ThrowIfFailed(E_FAIL);
-	if (!m_emitter->Init(m_commandList, numParticles, m_descriptorTableCache, uploaders,
+	if (!m_emitter->Init(pCommandList, numParticles, m_descriptorTableCache, uploaders,
 		m_renderer->GetInputLayout(), Format::B8G8R8A8_UNORM, Format::D24_UNORM_S8_UINT))
 		ThrowIfFailed(E_FAIL);
 
 	// Create SPH fluid simulator
 	m_fluidSPH = make_unique<FluidSPH>(m_device);
 	if (!m_fluidSPH) ThrowIfFailed(E_FAIL);
-	if (!m_fluidSPH->Init(m_commandList, numParticles, m_descriptorTableCache, m_emitter->GetParticleBuffers()))
+	if (!m_fluidSPH->Init(pCommandList, numParticles, m_descriptorTableCache, m_emitter->GetParticleBuffers()))
 		ThrowIfFailed(E_FAIL);
 
 	// Create fast hybrid fluid simulator
 	m_fluidFH = make_unique<FluidFH>(m_device);
 	if (!m_fluidFH) ThrowIfFailed(E_FAIL);
-	if (!m_fluidFH->Init(m_commandList, numParticles, m_descriptorTableCache, uploaders, Format::B8G8R8A8_UNORM))
+	if (!m_fluidFH->Init(pCommandList, numParticles, m_descriptorTableCache, uploaders, Format::B8G8R8A8_UNORM))
 		ThrowIfFailed(E_FAIL);
 
 #if defined(_DEBUG)
@@ -203,7 +207,7 @@ void ParticleEmitter::LoadAssets()
 		nullptr, &uploaders, Format::R32_UINT, 1024 * 5 + 387);
 #endif
 
-	m_emitter->Distribute(m_commandList, counter, m_renderer->GetVertexBuffer(),
+	m_emitter->Distribute(pCommandList, *counter, m_renderer->GetVertexBuffer(),
 		m_renderer->GetIndexBuffer(), m_renderer->GetNumIndices(), 32.0f, m_meshPosScale.w);
 
 #if defined(_DEBUG)
@@ -211,8 +215,8 @@ void ParticleEmitter::LoadAssets()
 #endif
 
 	// Close the command list and execute it to begin the initial GPU setup.
-	ThrowIfFailed(m_commandList.Close());
-	BaseCommandList* ppCommandLists[] = { m_commandList.GetCommandList().get() };
+	ThrowIfFailed(pCommandList->Close());
+	BaseCommandList* ppCommandLists[] = { pCommandList->GetCommandList().get() };
 	m_commandQueue->ExecuteCommandLists(static_cast<uint32_t>(size(ppCommandLists)), ppCommandLists);
 
 	// Create synchronization objects and wait until assets have been uploaded to the GPU.
@@ -239,12 +243,12 @@ void ParticleEmitter::LoadAssets()
 	// Shrink memory cost
 	Resource pEmitterSource[1];
 	ThrowIfFailed(m_commandAllocators[m_frameIndex]->Reset());
-	ThrowIfFailed(m_commandList.Reset(m_commandAllocators[m_frameIndex], nullptr));
-	N_RETURN(m_emitter->SetEmitterCount(m_commandList, counter, pEmitterSource), ThrowIfFailed(E_FAIL));
+	ThrowIfFailed(pCommandList->Reset(m_commandAllocators[m_frameIndex], nullptr));
+	N_RETURN(m_emitter->SetEmitterCount(pCommandList, *counter, pEmitterSource), ThrowIfFailed(E_FAIL));
 
 	// Close the command list and execute it to begin the initial GPU setup.
-	ThrowIfFailed(m_commandList.Close());
-	*ppCommandLists = m_commandList.GetCommandList().get();
+	ThrowIfFailed(pCommandList->Close());
+	*ppCommandLists = pCommandList->GetCommandList().get();
 	m_commandQueue->ExecuteCommandLists(static_cast<uint32_t>(size(ppCommandLists)), ppCommandLists);
 
 	// Create synchronization objects and wait until assets have been uploaded to the GPU.
@@ -302,7 +306,7 @@ void ParticleEmitter::OnRender()
 	PopulateCommandList();
 
 	// Execute the command list.
-	BaseCommandList* const ppCommandLists[] = { m_commandList.GetCommandList().get() };
+	BaseCommandList* const ppCommandLists[] = { m_commandList->GetCommandList().get() };
 	m_commandQueue->ExecuteCommandLists(static_cast<uint32_t>(size(ppCommandLists)), ppCommandLists);
 
 	// Present the frame.
@@ -428,49 +432,50 @@ void ParticleEmitter::PopulateCommandList()
 	// However, when ExecuteCommandList() is called on a particular command 
 	// list, that command list can then be reset at any time and must be before 
 	// re-recording.
-	ThrowIfFailed(m_commandList.Reset(m_commandAllocators[m_frameIndex], nullptr));
+	const auto pCommandList = m_commandList.get();
+	ThrowIfFailed(pCommandList->Reset(m_commandAllocators[m_frameIndex], nullptr));
 
 	// Record commands.
 	ResourceBarrier barriers[1];
-	auto numBarriers = m_renderTargets[m_frameIndex].SetBarrier(barriers, ResourceState::RENDER_TARGET);
-	m_commandList.Barrier(numBarriers, barriers);
+	auto numBarriers = m_renderTargets[m_frameIndex]->SetBarrier(barriers, ResourceState::RENDER_TARGET);
+	pCommandList->Barrier(numBarriers, barriers);
 
 	// Clear render target
 	const float clearColor[4] = { 0.2f, 0.2f, 0.2f, 0.0f };
-	m_commandList.ClearRenderTargetView(m_renderTargets[m_frameIndex].GetRTV(), clearColor);
-	m_commandList.ClearDepthStencilView(m_depth.GetDSV(), ClearFlag::DEPTH, 1.0f);
+	pCommandList->ClearRenderTargetView(m_renderTargets[m_frameIndex]->GetRTV(), clearColor);
+	pCommandList->ClearDepthStencilView(m_depth->GetDSV(), ClearFlag::DEPTH, 1.0f);
 	
-	m_renderer->Render(m_commandList, m_renderTargets[m_frameIndex].GetRTV(), m_depth.GetDSV());
+	m_renderer->Render(pCommandList, m_renderTargets[m_frameIndex]->GetRTV(), m_depth->GetDSV());
 
 	// Fluid simulation
 	switch (m_simulationMethod)
 	{
 	case SPH_SIMULATION:
-		m_emitter->RenderSPH(m_commandList, m_renderTargets[m_frameIndex].GetRTV(), &m_depth.GetDSV(),
+		m_emitter->RenderSPH(pCommandList, m_renderTargets[m_frameIndex]->GetRTV(), &m_depth->GetDSV(),
 			m_fluidSPH->GetDescriptorTable(), m_renderer->GetWorld());
-		m_fluidSPH->Simulate(m_commandList);
+		m_fluidSPH->Simulate(pCommandList);
 		break;
 	case FAST_HYBRID_FLUID:
-		m_emitter->RenderFHF(m_commandList, m_renderTargets[m_frameIndex].GetRTV(), &m_depth.GetDSV(),
+		m_emitter->RenderFHF(pCommandList, m_renderTargets[m_frameIndex]->GetRTV(), &m_depth->GetDSV(),
 			m_fluidFH->GetDescriptorTable(), m_renderer->GetWorld());
-		m_fluidFH->Simulate(m_commandList);
+		m_fluidFH->Simulate(pCommandList);
 		break;
 	case FAST_HYBRID_SMOKE:
-		m_emitter->ParticleFHS(m_commandList, m_fluidFH->GetDescriptorTable(false), m_renderer->GetWorld());
-		m_fluidFH->Simulate(m_commandList, false);
-		m_fluidFH->RayCast(m_commandList, m_width, m_height, XMLoadFloat3(&m_eyePt),
+		m_emitter->ParticleFHS(pCommandList, m_fluidFH->GetDescriptorTable(false), m_renderer->GetWorld());
+		m_fluidFH->Simulate(pCommandList, false);
+		m_fluidFH->RayCast(pCommandList, m_width, m_height, XMLoadFloat3(&m_eyePt),
 			XMLoadFloat4x4(&m_view) * XMLoadFloat4x4(&m_proj));
 		break;
 	default:
-		m_emitter->Render(m_commandList, m_renderTargets[m_frameIndex].GetRTV(),
-			&m_depth.GetDSV(), m_renderer->GetWorld());
+		m_emitter->Render(pCommandList, m_renderTargets[m_frameIndex]->GetRTV(),
+			&m_depth->GetDSV(), m_renderer->GetWorld());
 	}
 
 	// Indicate that the back buffer will now be used to present.
-	numBarriers = m_renderTargets[m_frameIndex].SetBarrier(barriers, ResourceState::PRESENT);
-	m_commandList.Barrier(numBarriers, barriers);
+	numBarriers = m_renderTargets[m_frameIndex]->SetBarrier(barriers, ResourceState::PRESENT);
+	pCommandList->Barrier(numBarriers, barriers);
 
-	ThrowIfFailed(m_commandList.Close());
+	ThrowIfFailed(pCommandList->Close());
 }
 
 // Wait for pending GPU work to complete.
