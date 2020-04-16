@@ -42,16 +42,16 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 		m_pBuffer = pBuffer;
 		// Create a UAV table
 		{
-			const auto uavTable = Util::DescriptorTable::MakeUnique();
-			uavTable->SetDescriptors(0, 1, &pBuffer->GetUAV());
-			X_RETURN(m_uavTables[UAV_TABLE_DATA], uavTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+			const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+			descriptorTable->SetDescriptors(0, 1, &pBuffer->GetUAV());
+			X_RETURN(m_uavTables[UAV_TABLE_DATA], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 		}
 
 		// Append a counter UAV table
 		{
-			const auto uavTable = Util::DescriptorTable::MakeUnique();
-			uavTable->SetDescriptors(0, 1, &m_counter->GetUAV());
-			X_RETURN(m_uavTables[UAV_TABLE_COUNTER], uavTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+			const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+			descriptorTable->SetDescriptors(0, 1, &m_counter->GetUAV());
+			X_RETURN(m_uavTables[UAV_TABLE_COUNTER], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 		}
 	}
 	else
@@ -82,16 +82,16 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 
 		// Create a UAV table
 		{
-			const auto uavTable = Util::DescriptorTable::MakeUnique();
-			uavTable->SetDescriptors(0, 1, &m_testBuffer->GetUAV(), TEMPORARY_POOL);
-			X_RETURN(m_uavTables[UAV_TABLE_DATA], uavTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+			const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+			descriptorTable->SetDescriptors(0, 1, &m_testBuffer->GetUAV(), TEMPORARY_POOL);
+			X_RETURN(m_uavTables[UAV_TABLE_DATA], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 		}
 
 		// Append a counter UAV table
 		{
-			const auto uavTable = Util::DescriptorTable::MakeUnique();
-			uavTable->SetDescriptors(0, 1, &m_counter->GetUAV(), TEMPORARY_POOL);
-			X_RETURN(m_uavTables[UAV_TABLE_COUNTER], uavTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+			const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+			descriptorTable->SetDescriptors(0, 1, &m_counter->GetUAV(), TEMPORARY_POOL);
+			X_RETURN(m_uavTables[UAV_TABLE_COUNTER], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 		}
 
 		// Upload test data

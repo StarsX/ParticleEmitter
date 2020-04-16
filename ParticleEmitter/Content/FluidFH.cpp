@@ -270,18 +270,18 @@ bool FluidFH::createDescriptorTables()
 {
 	// Create UAV and SRV tables
 	{
-		const auto cbvUavSrvTable = Util::DescriptorTable::MakeUnique();
+		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		const Descriptor descriptors[] =
 		{
 			m_cbSimulation->GetCBV(),
 			m_grid->GetSRV()
 		};
-		cbvUavSrvTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_PARTICLE_FHF], cbvUavSrvTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
+		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_PARTICLE_FHF], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
 	{
-		const auto uavTable = Util::DescriptorTable::MakeUnique();
+		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		const Descriptor descriptors[] =
 		{
 			m_densityU->GetUAV(),
@@ -290,43 +290,43 @@ bool FluidFH::createDescriptorTables()
 			m_velocity[2]->GetUAV(),
 			m_grid->GetUAV()
 		};
-		uavTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_TRANSFER_FHF], uavTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
+		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_TRANSFER_FHF], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
 	{
-		const auto cbvUavSrvTable = Util::DescriptorTable::MakeUnique();
-		cbvUavSrvTable->SetDescriptors(0, 1, &m_cbSimulation->GetCBV());
-		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_PARTICLE_FHS], cbvUavSrvTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+		descriptorTable->SetDescriptors(0, 1, &m_cbSimulation->GetCBV());
+		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_PARTICLE_FHS], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
 	{
-		const auto srvTable = Util::DescriptorTable::MakeUnique();
+		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		const Descriptor descriptors[] =
 		{
 			m_density->GetSRV()
 		};
-		srvTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_RAYCAST], srvTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
+		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_RAYCAST], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
 	{
-		const auto uavTable = Util::DescriptorTable::MakeUnique();
+		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		const Descriptor descriptors[] =
 		{
 			m_densityU->GetUAV(),
 			m_density->GetUAV()
 		};
-		uavTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_TRANSFER_FHS], uavTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
+		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_TRANSFER_FHS], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
 	// Create the sampler
 	{
-		const auto samplerTable = Util::DescriptorTable::MakeUnique();
+		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		const auto samplerAnisoWrap = SamplerPreset::LINEAR_CLAMP;
-		samplerTable->SetSamplers(0, 1, &samplerAnisoWrap, *m_descriptorTableCache);
-		X_RETURN(m_samplerTable, samplerTable->GetSamplerTable(*m_descriptorTableCache), false);
+		descriptorTable->SetSamplers(0, 1, &samplerAnisoWrap, *m_descriptorTableCache);
+		X_RETURN(m_samplerTable, descriptorTable->GetSamplerTable(*m_descriptorTableCache), false);
 	}
 
 	return true;

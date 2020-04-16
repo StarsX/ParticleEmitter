@@ -186,7 +186,7 @@ bool FluidSPH::createDescriptorTables()
 {
 	// Create UAV and SRV table for integration
 	{
-		const auto uavSrvTable = Util::DescriptorTable::MakeUnique();
+		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		const Descriptor descriptors[] =
 		{
 			m_gridBuffer->GetUAV(),
@@ -194,52 +194,52 @@ bool FluidSPH::createDescriptorTables()
 			m_pParticleBuffers[REARRANGED]->GetSRV(),
 			m_forceBuffer->GetSRV()
 		};
-		uavSrvTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		X_RETURN(m_uavSrvTable, uavSrvTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
+		X_RETURN(m_uavSrvTable, descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
 	// Create SRV tables
 	{
-		const auto srvTable = Util::DescriptorTable::MakeUnique();
-		const Descriptor srvs[] =
+		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+		const Descriptor descriptors[] =
 		{
 			m_pParticleBuffers[INTEGRATED]->GetSRV(),
 			m_gridBuffer->GetSRV(),
 			m_offsetBuffer->GetSRV()
 		};
-		srvTable->SetDescriptors(0, static_cast<uint32_t>(size(srvs)), srvs);
-		X_RETURN(m_srvTables[SRV_TABLE_REARRANGLE], srvTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
+		X_RETURN(m_srvTables[SRV_TABLE_REARRANGLE], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
 	{
-		const auto srvTable = Util::DescriptorTable::MakeUnique();
-		const Descriptor srvs[] =
+		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+		const Descriptor descriptors[] =
 		{
 			m_pParticleBuffers[REARRANGED]->GetSRV(),
 			m_gridBuffer->GetSRV(),
 			m_densityBuffer->GetSRV()
 		};
-		srvTable->SetDescriptors(0, static_cast<uint32_t>(size(srvs)), srvs);
-		X_RETURN(m_srvTables[SRV_TABLE_SPH], srvTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
+		X_RETURN(m_srvTables[SRV_TABLE_SPH], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
 	// Create UAV tables
 	{
-		const auto uavTable = Util::DescriptorTable::MakeUnique();
-		uavTable->SetDescriptors(0, 1, &m_pParticleBuffers[REARRANGED]->GetUAV());
-		X_RETURN(m_uavTables[UAV_TABLE_PARTICLE], uavTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+		descriptorTable->SetDescriptors(0, 1, &m_pParticleBuffers[REARRANGED]->GetUAV());
+		X_RETURN(m_uavTables[UAV_TABLE_PARTICLE], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
 	{
-		const auto uavTable = Util::DescriptorTable::MakeUnique();
-		uavTable->SetDescriptors(0, 1, &m_densityBuffer->GetUAV());
-		X_RETURN(m_uavTables[UAV_TABLE_DENSITY], uavTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+		descriptorTable->SetDescriptors(0, 1, &m_densityBuffer->GetUAV());
+		X_RETURN(m_uavTables[UAV_TABLE_DENSITY], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
 	{
-		const auto uavTable = Util::DescriptorTable::MakeUnique();
-		uavTable->SetDescriptors(0, 1, &m_forceBuffer->GetUAV());
-		X_RETURN(m_uavTables[UAV_TABLE_FORCE], uavTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
+		descriptorTable->SetDescriptors(0, 1, &m_forceBuffer->GetUAV());
+		X_RETURN(m_uavTables[UAV_TABLE_FORCE], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
 	return true;
