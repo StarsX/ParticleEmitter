@@ -247,8 +247,7 @@ void ParticleEmitter::LoadAssets()
 
 	// Close the command list and execute it to begin the initial GPU setup.
 	ThrowIfFailed(pCommandList->Close());
-	*ppCommandLists = pCommandList->GetCommandList().get();
-	m_commandQueue->ExecuteCommandLists(static_cast<uint32_t>(size(ppCommandLists)), ppCommandLists);
+	m_commandQueue->SubmitCommandList(pCommandList);
 
 	// Create synchronization objects and wait until assets have been uploaded to the GPU.
 	WaitForGpu();
