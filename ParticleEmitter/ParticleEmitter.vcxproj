@@ -82,14 +82,19 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies>d3d12.lib;dxgi.lib;d3dcompiler.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
     </Link>
-    <PostBuildEvent>
-      <Command>COPY /Y "$(OutDir)*.cso" "$(ProjectDir)..\Bin\"
-COPY /Y "$(OutDir)*.exe" "$(ProjectDir)..\Bin\"</Command>
-    </PostBuildEvent>
+    <PostBuildEvent />
     <FxCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)Content</AdditionalIncludeDirectories>
     </FxCompile>
+    <PostBuildEvent>
+      <Command>COPY /Y "$(OutDir)*.cso" "$(ProjectDir)..\Bin\"
+
+COPY /Y "$(OutDir)*.exe" "$(ProjectDir)..\Bin\"
+
+COPY /Y "$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir)..\Bin\"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -102,18 +107,19 @@ COPY /Y "$(OutDir)*.exe" "$(ProjectDir)..\Bin\"</Command>
     </ClCompile>
     <Link>
       <AdditionalDependencies>d3d12.lib;dxgi.lib;d3dcompiler.lib;dxguid.lib;XUSG.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)XUSG\$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
     </Link>
+    <PostBuildEvent />
+    <FxCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir)Content</AdditionalIncludeDirectories>
+    </FxCompile>
     <PostBuildEvent>
       <Command>COPY /Y "$(OutDir)*.cso" "$(ProjectDir)..\Bin\"
 
 COPY /Y "$(OutDir)*.exe" "$(ProjectDir)..\Bin\"
 
-COPY /Y "$(ProjectDir)XUSG\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir)..\Bin\"</Command>
+COPY /Y "$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir)..\Bin\"</Command>
     </PostBuildEvent>
-    <FxCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir)Content</AdditionalIncludeDirectories>
-    </FxCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -130,14 +136,19 @@ COPY /Y "$(ProjectDir)XUSG\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir)..\
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>d3d12.lib;dxgi.lib;d3dcompiler.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
     </Link>
-    <PostBuildEvent>
-      <Command>COPY /Y "$(OutDir)*.cso" "$(ProjectDir)..\Bin\"
-COPY /Y "$(OutDir)*.exe" "$(ProjectDir)..\Bin\"</Command>
-    </PostBuildEvent>
+    <PostBuildEvent />
     <FxCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)Content</AdditionalIncludeDirectories>
     </FxCompile>
+    <PostBuildEvent>
+      <Command>COPY /Y "$(OutDir)*.cso" "$(ProjectDir)..\Bin\"
+
+COPY /Y "$(OutDir)*.exe" "$(ProjectDir)..\Bin\"
+
+COPY /Y "$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir)..\Bin\"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -154,23 +165,23 @@ COPY /Y "$(OutDir)*.exe" "$(ProjectDir)..\Bin\"</Command>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>d3d12.lib;dxgi.lib;d3dcompiler.lib;dxguid.lib;XUSG.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)XUSG\$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
     </Link>
+    <PostBuildEvent />
+    <FxCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir)Content</AdditionalIncludeDirectories>
+    </FxCompile>
     <PostBuildEvent>
       <Command>COPY /Y "$(OutDir)*.cso" "$(ProjectDir)..\Bin\"
 
 COPY /Y "$(OutDir)*.exe" "$(ProjectDir)..\Bin\"
 
-COPY /Y "$(ProjectDir)XUSG\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir)..\Bin\"</Command>
+COPY /Y "$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir)..\Bin\"</Command>
     </PostBuildEvent>
-    <FxCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir)Content</AdditionalIncludeDirectories>
-    </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Common\d3dx12.h" />
     <ClInclude Include="Common\dds.h" />
-    <ClInclude Include="Common\dxcapi.h" />
     <ClInclude Include="Common\DXFramework.h" />
     <ClInclude Include="Common\DXFrameworkHelper.h" />
     <ClInclude Include="Common\StepTimer.h" />

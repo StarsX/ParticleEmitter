@@ -169,10 +169,10 @@ void ParticleEmitter::LoadAssets()
 
 	// Create the command list.
 	m_commandList = CommandList::MakeUnique();
-	N_RETURN(m_device->GetCommandList(m_commandList->GetCommandList(), 0, CommandListType::DIRECT,
+	const auto pCommandList = m_commandList.get();
+	N_RETURN(m_device->GetCommandList(pCommandList, 0, CommandListType::DIRECT,
 		m_commandAllocators[m_frameIndex], nullptr), ThrowIfFailed(E_FAIL));
 
-	const auto pCommandList = m_commandList.get();
 	vector<Resource> uploaders(0);
 	// Create renderer
 	m_renderer = make_unique<Renderer>(m_device);
@@ -203,7 +203,7 @@ void ParticleEmitter::LoadAssets()
 
 #if defined(_DEBUG)
 	ComputeUtil prefixSumUtil(m_device);
-	prefixSumUtil.SetPrefixSum(m_commandList, true, m_descriptorTableCache,
+	prefixSumUtil.SetPrefixSum(pCommandList, true, m_descriptorTableCache,
 		nullptr, &uploaders, Format::R32_UINT, 1024 * 5 + 387);
 #endif
 
@@ -211,13 +211,12 @@ void ParticleEmitter::LoadAssets()
 		m_renderer->GetIndexBuffer(), m_renderer->GetNumIndices(), 32.0f, m_meshPosScale.w);
 
 #if defined(_DEBUG)
-	prefixSumUtil.PrefixSum(m_commandList);
+	prefixSumUtil.PrefixSum(pCommandList);
 #endif
 
 	// Close the command list and execute it to begin the initial GPU setup.
 	ThrowIfFailed(pCommandList->Close());
-	BaseCommandList* ppCommandLists[] = { pCommandList->GetCommandList().get() };
-	m_commandQueue->ExecuteCommandLists(static_cast<uint32_t>(size(ppCommandLists)), ppCommandLists);
+	m_commandQueue->SubmitCommandList(pCommandList);
 
 	// Create synchronization objects and wait until assets have been uploaded to the GPU.
 	{
@@ -306,8 +305,7 @@ void ParticleEmitter::OnRender()
 	PopulateCommandList();
 
 	// Execute the command list.
-	BaseCommandList* const ppCommandLists[] = { m_commandList->GetCommandList().get() };
-	m_commandQueue->ExecuteCommandLists(static_cast<uint32_t>(size(ppCommandLists)), ppCommandLists);
+	m_commandQueue->SubmitCommandList(m_commandList.get());
 
 	// Present the frame.
 	ThrowIfFailed(m_swapChain->Present(0, 0));
