@@ -122,48 +122,6 @@ void FluidFH::Simulate(const CommandList* pCommandList, bool hasViscosity)
 	pCommandList->Dispatch(DIV_UP(GRID_SIZE_FHF, 8), DIV_UP(GRID_SIZE_FHF, 8), GRID_SIZE_FHF);
 }
 
-void FluidFH::RayCast(const CommandList* pCommandList, uint32_t width,
-	uint32_t height, CXMVECTOR eyePt, CXMMATRIX viewProj)
-{
-	// General matrices
-	const XMFLOAT4 boundary(BOUNDARY_FHF);
-	const auto world = XMMatrixScaling(boundary.w, boundary.w, boundary.w) *
-		XMMatrixTranslation(boundary.x, boundary.y, boundary.z) *
-		XMMatrixScaling(10.0f, 10.0f, 10.0f);
-	const auto worldI = XMMatrixInverse(nullptr, world);
-	const auto worldViewProj = world * viewProj;
-
-	// Screen space matrices
-	CBPerObject cbPerObject;
-	cbPerObject.LocalSpaceLightPt = XMVector3TransformCoord(XMVectorSet(75.0f, 75.0f, -75.0f, 0.0f), worldI);
-	cbPerObject.LocalSpaceEyePt = XMVector3TransformCoord(eyePt, worldI);
-
-	const auto mToScreen = XMMATRIX
-	(
-		0.5f * width, 0.0f, 0.0f, 0.0f,
-		0.0f, -0.5f * height, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.5f * width, 0.5f * height, 0.0f, 1.0f
-	);
-	const auto localToScreen = XMMatrixMultiply(worldViewProj, mToScreen);
-	const auto screenToLocal = XMMatrixInverse(nullptr, localToScreen);
-	cbPerObject.ScreenToLocal = XMMatrixTranspose(screenToLocal);
-	cbPerObject.WorldViewProj = XMMatrixTranspose(worldViewProj);
-
-	// Set pipeline state
-	pCommandList->SetGraphicsPipelineLayout(m_pipelineLayouts[RAY_CAST]);
-	pCommandList->SetPipelineState(m_pipelines[RAY_CAST]);
-
-	pCommandList->IASetPrimitiveTopology(PrimitiveTopology::TRIANGLELIST);
-
-	// Set descriptor tables
-	pCommandList->SetGraphics32BitConstants(0, SizeOfInUint32(cbPerObject), &cbPerObject);
-	pCommandList->SetGraphicsDescriptorTable(1, m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_RAYCAST]);
-	pCommandList->SetGraphicsDescriptorTable(2, m_samplerTable);
-
-	pCommandList->Draw(3, 1, 0, 0);
-}
-
 const DescriptorTable& FluidFH::GetDescriptorTable(bool hasViscosity) const
 {
 	return m_cbvUavSrvTables[hasViscosity ? CBV_UAV_SRV_TABLE_PARTICLE_FHF : CBV_UAV_SRV_TABLE_PARTICLE_FHS];
@@ -195,19 +153,6 @@ bool FluidFH::createPipelineLayouts()
 		pipelineLayout->SetRange(1, DescriptorType::SAMPLER, 1, 0);
 		X_RETURN(m_pipelineLayouts[RESAMPLE], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
 			PipelineLayoutFlag::NONE, L"ResamplingLayout"), false);
-	}
-
-	// Ray casting
-	{
-		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetConstants(0, SizeOfInUint32(CBPerObject), 0, 0, Shader::Stage::PS);
-		pipelineLayout->SetRange(1, DescriptorType::SRV, 1, 0);
-		pipelineLayout->SetRange(2, DescriptorType::SAMPLER, 1, 0);
-		pipelineLayout->SetShaderStage(0, Shader::Stage::PS);
-		pipelineLayout->SetShaderStage(1, Shader::Stage::PS);
-		pipelineLayout->SetShaderStage(2, Shader::Stage::PS);
-		X_RETURN(m_pipelineLayouts[RAY_CAST], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
-			PipelineLayoutFlag::NONE, L"RayCastLayout"), false);
 	}
 
 	return true;
@@ -247,22 +192,6 @@ bool FluidFH::createPipelines(Format rtFormat)
 		X_RETURN(m_pipelines[RESAMPLE], state->GetPipeline(*m_computePipelineCache, L"Resampling"), false);
 	}
 
-	// Ray casting
-	{
-		N_RETURN(m_shaderPool->CreateShader(Shader::Stage::VS, 0, L"VSScreenQuad.cso"), false);
-		N_RETURN(m_shaderPool->CreateShader(Shader::Stage::PS, 0, L"PSRayCast.cso"), false);
-
-		const auto state = Graphics::State::MakeUnique();
-		state->SetPipelineLayout(m_pipelineLayouts[RAY_CAST]);
-		state->SetShader(Shader::Stage::VS, m_shaderPool->GetShader(Shader::Stage::VS, 0));
-		state->SetShader(Shader::Stage::PS, m_shaderPool->GetShader(Shader::Stage::PS, 0));
-		state->IASetPrimitiveTopologyType(PrimitiveTopologyType::TRIANGLE);
-		state->DSSetState(Graphics::DEPTH_STENCIL_NONE, *m_graphicsPipelineCache);
-		state->OMSetBlendState(Graphics::NON_PRE_MUL, *m_graphicsPipelineCache);
-		state->OMSetRTVFormats(&rtFormat, 1);
-		X_RETURN(m_pipelines[RAY_CAST], state->GetPipeline(*m_graphicsPipelineCache, L"RayCast"), false);
-	}
-
 	return true;
 }
 
@@ -298,16 +227,6 @@ bool FluidFH::createDescriptorTables()
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		descriptorTable->SetDescriptors(0, 1, &m_cbSimulation->GetCBV());
 		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_PARTICLE_FHS], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
-	}
-
-	{
-		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
-		const Descriptor descriptors[] =
-		{
-			m_density->GetSRV()
-		};
-		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_RAYCAST], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
 	{

@@ -213,9 +213,6 @@
     <FxCompile Include="Content\Shaders\CSResample.hlsl">
       <Filter>Shaders\FastHybridFluid</Filter>
     </FxCompile>
-    <FxCompile Include="Content\Shaders\PSRayCast.hlsl">
-      <Filter>Shaders\FastHybridFluid</Filter>
-    </FxCompile>
     <FxCompile Include="Content\Shaders\CSParticleFHS.hlsl">
       <Filter>Shaders\FastHybridFluid</Filter>
     </FxCompile>

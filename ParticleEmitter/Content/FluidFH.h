@@ -20,9 +20,6 @@ public:
 
 	void UpdateFrame();
 	void Simulate(const XUSG::CommandList* pCommandList, bool hasViscosity = true);
-	void SimulateSmoke(const XUSG::CommandList* pCommandList);
-	void RayCast(const XUSG::CommandList* pCommandList, uint32_t width, uint32_t height,
-		DirectX::CXMVECTOR eyePt, DirectX::CXMMATRIX viewProj);
 
 	const XUSG::DescriptorTable& GetDescriptorTable(bool hasViscosity = true) const;
 
@@ -32,7 +29,6 @@ protected:
 		TRANSFER_FHF,
 		TRANSFER_FHS,
 		RESAMPLE,
-		RAY_CAST,
 
 		NUM_PIPELINE
 	};
@@ -42,7 +38,6 @@ protected:
 		CBV_UAV_SRV_TABLE_PARTICLE_FHF,
 		CBV_UAV_SRV_TABLE_TRANSFER_FHF,
 		CBV_UAV_SRV_TABLE_PARTICLE_FHS,
-		CBV_UAV_SRV_TABLE_RAYCAST,
 		CBV_UAV_SRV_TABLE_TRANSFER_FHS,
 
 		NUM_CBV_UAV_SRV_TABLE

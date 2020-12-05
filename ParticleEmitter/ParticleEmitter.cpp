@@ -458,12 +458,6 @@ void ParticleEmitter::PopulateCommandList()
 			m_fluidFH->GetDescriptorTable(), m_renderer->GetWorld());
 		m_fluidFH->Simulate(pCommandList);
 		break;
-	case FAST_HYBRID_SMOKE:
-		m_emitter->ParticleFHS(pCommandList, m_fluidFH->GetDescriptorTable(false), m_renderer->GetWorld());
-		m_fluidFH->Simulate(pCommandList, false);
-		m_fluidFH->RayCast(pCommandList, m_width, m_height, XMLoadFloat3(&m_eyePt),
-			XMLoadFloat4x4(&m_view) * XMLoadFloat4x4(&m_proj));
-		break;
 	default:
 		m_emitter->Render(pCommandList, m_renderTargets[m_frameIndex]->GetRTV(),
 			&m_depth->GetDSV(), m_renderer->GetWorld());
