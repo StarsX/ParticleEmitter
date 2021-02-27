@@ -116,8 +116,9 @@ bool FluidSPH::createPipelineLayouts()
 	// Rearrangement
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetRange(0, DescriptorType::SRV, 3, 0);
-		pipelineLayout->SetRange(1, DescriptorType::UAV, 1, 0);
+		pipelineLayout->SetRange(0, DescriptorType::SRV, 3, 0, 0, DescriptorFlag::DESCRIPTORS_VOLATILE);
+		pipelineLayout->SetRange(1, DescriptorType::UAV, 1, 0, 0,
+			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
 		X_RETURN(m_pipelineLayouts[REARRANGE], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
 			PipelineLayoutFlag::NONE, L"RearrangementLayout"), false);
 	}
@@ -126,8 +127,9 @@ bool FluidSPH::createPipelineLayouts()
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
 		pipelineLayout->SetConstants(0, SizeOfInUint32(CBSimulation), 0, 0, Shader::Stage::CS);
-		pipelineLayout->SetRange(1, DescriptorType::SRV, 2, 0);
-		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0);
+		pipelineLayout->SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorFlag::DESCRIPTORS_VOLATILE);
+		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0, 0,
+			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
 		X_RETURN(m_pipelineLayouts[DENSITY], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
 			PipelineLayoutFlag::NONE, L"DensityLayout"), false);
 	}
@@ -136,8 +138,9 @@ bool FluidSPH::createPipelineLayouts()
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
 		pipelineLayout->SetConstants(0, SizeOfInUint32(CBSimulation), 0, 0, Shader::Stage::CS);
-		pipelineLayout->SetRange(1, DescriptorType::SRV, 3, 0);
-		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0);
+		pipelineLayout->SetRange(1, DescriptorType::SRV, 3, 0, 0, DescriptorFlag::DESCRIPTORS_VOLATILE);
+		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0, 0,
+			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
 		X_RETURN(m_pipelineLayouts[FORCE], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
 			PipelineLayoutFlag::NONE, L"ForceLayout"), false);
 	}

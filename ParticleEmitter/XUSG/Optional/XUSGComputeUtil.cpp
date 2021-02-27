@@ -149,7 +149,8 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 	// Create pipeline layout
 	const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
 	pipelineLayout->SetConstants(0, SizeOfInUint32(uint32_t[2]), 0);
-	pipelineLayout->SetRange(1, DescriptorType::UAV, 2, 0);
+	pipelineLayout->SetRange(1, DescriptorType::UAV, 2, 0, 0,
+		DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
 	X_RETURN(m_pipelineLayouts[pipelineIndex], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
 		PipelineLayoutFlag::NONE, L"PrefixSumLayout"), false);
 
@@ -170,7 +171,8 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 	{
 		// Create pipeline layout
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetRange(0, DescriptorType::UAV, 1, 0);
+		pipelineLayout->SetRange(0, DescriptorType::UAV, 1, 0, 0,
+			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
 		X_RETURN(m_pipelineLayouts[pipelineIndex + 1], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
 			PipelineLayoutFlag::NONE, L"PrefixSum2Layout"), false);
 

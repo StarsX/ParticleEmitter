@@ -132,7 +132,8 @@ bool FluidFH::createPipelineLayouts()
 	// Transfer with viscosity
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetRange(0, DescriptorType::UAV, 5, 0);
+		pipelineLayout->SetRange(0, DescriptorType::UAV, 5, 0, 0,
+			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
 		X_RETURN(m_pipelineLayouts[TRANSFER_FHF], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
 			PipelineLayoutFlag::NONE, L"TransferFHFLayout"), false);
 	}
@@ -140,7 +141,8 @@ bool FluidFH::createPipelineLayouts()
 	// Transfer without viscosity
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetRange(0, DescriptorType::UAV, 2, 0);
+		pipelineLayout->SetRange(0, DescriptorType::UAV, 2, 0, 0,
+			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
 		X_RETURN(m_pipelineLayouts[TRANSFER_FHS], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
 			PipelineLayoutFlag::NONE, L"TransferFHSLayout"), false);
 	}
@@ -148,8 +150,9 @@ bool FluidFH::createPipelineLayouts()
 	// Resampling
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetRange(0, DescriptorType::UAV, 1, 0);
-		pipelineLayout->SetRange(0, DescriptorType::SRV, 1, 0);
+		pipelineLayout->SetRange(0, DescriptorType::UAV, 1, 0, 0,
+			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
+		pipelineLayout->SetRange(0, DescriptorType::SRV, 1, 0, 0, DescriptorFlag::DESCRIPTORS_VOLATILE);
 		pipelineLayout->SetRange(1, DescriptorType::SAMPLER, 1, 0);
 		X_RETURN(m_pipelineLayouts[RESAMPLE], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
 			PipelineLayoutFlag::NONE, L"ResamplingLayout"), false);

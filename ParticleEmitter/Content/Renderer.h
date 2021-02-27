@@ -24,7 +24,7 @@ public:
 
 	const XUSG::VertexBuffer& GetVertexBuffer() const;
 	const XUSG::IndexBuffer& GetIndexBuffer() const;
-	const XUSG::InputLayout& GetInputLayout() const;
+	const XUSG::InputLayout* GetInputLayout() const;
 	const DirectX::XMFLOAT4X4& GetWorldViewProj() const;
 	const DirectX::XMFLOAT4X4& GetWorld() const;
 	uint32_t GetNumIndices() const;
@@ -53,7 +53,7 @@ protected:
 	DirectX::XMUINT2	m_viewport;
 	BasePassConstants	m_cbBasePass;
 
-	XUSG::InputLayout		m_inputLayout;
+	const XUSG::InputLayout* m_pInputLayout;
 	XUSG::PipelineLayout	m_pipelineLayout;
 	XUSG::Pipeline			m_pipeline;
 

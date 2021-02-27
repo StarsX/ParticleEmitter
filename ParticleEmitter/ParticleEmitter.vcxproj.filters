@@ -213,11 +213,5 @@
     <FxCompile Include="Content\Shaders\CSResample.hlsl">
       <Filter>Shaders\FastHybridFluid</Filter>
     </FxCompile>
-    <FxCompile Include="Content\Shaders\CSParticleFHS.hlsl">
-      <Filter>Shaders\FastHybridFluid</Filter>
-    </FxCompile>
-    <FxCompile Include="Content\Shaders\CSTransferFHS.hlsl">
-      <Filter>Shaders\FastHybridFluid</Filter>
-    </FxCompile>
   </ItemGroup>
 </Project>

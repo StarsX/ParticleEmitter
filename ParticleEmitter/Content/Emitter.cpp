@@ -24,7 +24,7 @@ Emitter::~Emitter()
 
 bool Emitter::Init(CommandList* pCommandList, uint32_t numParticles,
 	shared_ptr<DescriptorTableCache> descriptorTableCache,
-	vector<Resource>& uploaders, const InputLayout& inputLayout,
+	vector<Resource>& uploaders, const InputLayout* pInputLayout,
 	Format rtFormat, Format dsFormat)
 {
 	m_cbParticle.NumParticles = numParticles;
@@ -63,7 +63,7 @@ bool Emitter::Init(CommandList* pCommandList, uint32_t numParticles,
 		sizeof(ParticleInfo) * numParticles);
 
 	N_RETURN(createPipelineLayouts(), false);
-	N_RETURN(createPipelines(inputLayout, rtFormat, dsFormat), false);
+	N_RETURN(createPipelines(pInputLayout, rtFormat, dsFormat), false);
 	N_RETURN(createDescriptorTables(), false);
 
 	return true;
@@ -285,35 +285,6 @@ void Emitter::RenderFHF(const CommandList* pCommandList, const Descriptor& rtv,
 	pCommandList->Draw(m_cbParticle.NumParticles, 1, 0, 0);
 }
 
-void Emitter::ParticleFHS(const CommandList* pCommandList,
-	const DescriptorTable& fluidDescriptorTable,
-	const XMFLOAT4X4& world)
-{
-	m_cbParticle.WorldPrev = m_cbParticle.World;
-	m_cbParticle.World = world;
-	m_cbParticle.BaseSeed = rand();
-
-	const DescriptorPool descriptorPools[] =
-	{
-		m_descriptorTableCache->GetDescriptorPool(CBV_SRV_UAV_POOL),
-		m_descriptorTableCache->GetDescriptorPool(SAMPLER_POOL)
-	};
-	pCommandList->SetDescriptorPools(static_cast<uint32_t>(size(descriptorPools)), descriptorPools);
-
-	// Set pipeline state
-	pCommandList->SetComputePipelineLayout(m_pipelineLayouts[PARTICLE_FHS]);
-	pCommandList->SetPipelineState(m_pipelines[PARTICLE_FHS]);
-
-	// Set descriptor tables
-	pCommandList->SetCompute32BitConstants(0, SizeOfInUint32(m_cbParticle), &m_cbParticle);
-	pCommandList->SetComputeDescriptorTable(1, m_srvTable);
-	pCommandList->SetComputeDescriptorTable(2, m_uavTables[UAV_TABLE_PARTICLE]);
-	pCommandList->SetComputeDescriptorTable(3, fluidDescriptorTable);
-	pCommandList->SetComputeDescriptorTable(4, m_samplerTable);
-
-	pCommandList->Dispatch(DIV_UP(m_cbParticle.NumParticles, 64), 1, 1);
-}
-
 void Emitter::Visualize(const CommandList* pCommandList, const Descriptor& rtv,
 	const Descriptor* pDsv, const XMFLOAT4X4& worldViewProj)
 {
@@ -349,7 +320,7 @@ bool Emitter::createPipelineLayouts()
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
 		pipelineLayout->SetConstants(0, SizeOfInUint32(XMFLOAT4X4), 0, 0, Shader::Stage::VS);
-		pipelineLayout->SetRange(1, DescriptorType::UAV, 1, 0);
+		pipelineLayout->SetRange(1, DescriptorType::UAV, 1, 0, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		pipelineLayout->SetShaderStage(1, Shader::Stage::DS);
 		X_RETURN(m_pipelineLayouts[DISTRIBUTE], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
 			PipelineLayoutFlag::ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT, L"DistributionLayout"), false);
@@ -360,7 +331,7 @@ bool Emitter::createPipelineLayouts()
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
 		pipelineLayout->SetConstants(0, SizeOfInUint32(CBParticle), 0, 0, Shader::Stage::VS);
 		pipelineLayout->SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorFlag::DATA_STATIC);
-		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0);
+		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		pipelineLayout->SetShaderStage(1, Shader::Stage::VS);
 		pipelineLayout->SetShaderStage(2, Shader::Stage::VS);
 		X_RETURN(m_pipelineLayouts[PARTICLE], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
@@ -372,8 +343,8 @@ bool Emitter::createPipelineLayouts()
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
 		pipelineLayout->SetConstants(0, SizeOfInUint32(CBParticle), 0, 0, Shader::Stage::VS);
 		pipelineLayout->SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorFlag::DATA_STATIC);
-		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0);
-		pipelineLayout->SetRange(3, DescriptorType::UAV, 2, 1);
+		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
+		pipelineLayout->SetRange(3, DescriptorType::UAV, 2, 1, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		pipelineLayout->SetRange(3, DescriptorType::SRV, 2, 2);
 		pipelineLayout->SetShaderStage(1, Shader::Stage::VS);
 		pipelineLayout->SetShaderStage(2, Shader::Stage::VS);
@@ -387,10 +358,10 @@ bool Emitter::createPipelineLayouts()
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
 		pipelineLayout->SetConstants(0, SizeOfInUint32(CBParticle), 0, 0, Shader::Stage::VS);
 		pipelineLayout->SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorFlag::DATA_STATIC);
-		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0);
-		pipelineLayout->SetRange(3, DescriptorType::CBV, 1, 1);
+		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
+		pipelineLayout->SetRange(3, DescriptorType::CBV, 1, 1, 0, DescriptorFlag::DATA_STATIC);
 		pipelineLayout->SetRange(3, DescriptorType::SRV, 1, 2);
-		pipelineLayout->SetRange(3, DescriptorType::UAV, 4, 1);
+		pipelineLayout->SetRange(3, DescriptorType::UAV, 4, 1, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		pipelineLayout->SetRange(4, DescriptorType::SAMPLER, 1, 0);
 		pipelineLayout->SetShaderStage(1, Shader::Stage::VS);
 		pipelineLayout->SetShaderStage(2, Shader::Stage::VS);
@@ -400,26 +371,13 @@ bool Emitter::createPipelineLayouts()
 			PipelineLayoutFlag::NONE, L"ParticleFHFLayout"), false);
 	}
 
-	// Particle emission and integration for fast hybrid smoke
-	{
-		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetConstants(0, SizeOfInUint32(CBParticle), 0, 0, Shader::Stage::CS);
-		pipelineLayout->SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorFlag::DATA_STATIC);
-		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0);
-		pipelineLayout->SetRange(3, DescriptorType::CBV, 1, 1);
-		pipelineLayout->SetRange(3, DescriptorType::SRV, 1, 2);
-		pipelineLayout->SetRange(3, DescriptorType::UAV, 1, 1);
-		pipelineLayout->SetRange(4, DescriptorType::SAMPLER, 1, 0);
-		X_RETURN(m_pipelineLayouts[PARTICLE_FHS], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
-			PipelineLayoutFlag::NONE, L"ParticleFHSLayout"), false);
-	}
-
 	// Particle emission
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
 		pipelineLayout->SetConstants(0, SizeOfInUint32(CBEmission), 0, 0, Shader::Stage::CS);
 		pipelineLayout->SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorFlag::DATA_STATIC);
-		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0);
+		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0, 0,
+			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
 		X_RETURN(m_pipelineLayouts[EMISSION], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
 			PipelineLayoutFlag::NONE, L"EmissionLayout"), false);
 	}
@@ -436,7 +394,7 @@ bool Emitter::createPipelineLayouts()
 	return true;
 }
 
-bool Emitter::createPipelines(const InputLayout& inputLayout, Format rtFormat, Format dsFormat)
+bool Emitter::createPipelines(const InputLayout* pInputLayout, Format rtFormat, Format dsFormat)
 {
 	auto vsIndex = 0u;
 	auto hsIndex = 0u;
@@ -451,7 +409,7 @@ bool Emitter::createPipelines(const InputLayout& inputLayout, Format rtFormat, F
 		N_RETURN(m_shaderPool->CreateShader(Shader::Stage::DS, dsIndex, L"DSDistribute.cso"), false);
 
 		const auto state = Graphics::State::MakeUnique();
-		state->IASetInputLayout(inputLayout);
+		state->IASetInputLayout(pInputLayout);
 		state->SetPipelineLayout(m_pipelineLayouts[DISTRIBUTE]);
 		state->SetShader(Shader::Stage::VS, m_shaderPool->GetShader(Shader::Stage::VS, vsIndex++));
 		state->SetShader(Shader::Stage::HS, m_shaderPool->GetShader(Shader::Stage::HS, hsIndex++));
@@ -505,16 +463,6 @@ bool Emitter::createPipelines(const InputLayout& inputLayout, Format rtFormat, F
 		state->OMSetRTVFormat(0, rtFormat);
 		state->OMSetDSVFormat(dsFormat);
 		X_RETURN(m_pipelines[PARTICLE_FHF], state->GetPipeline(*m_graphicsPipelineCache, L"ParticleFHF"), false);
-	}
-
-	// Particle emission and integration for fast hybrid smoke
-	{
-		N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, csIndex, L"CSParticleFHS.cso"), false);
-
-		const auto state = Compute::State::MakeUnique();
-		state->SetPipelineLayout(m_pipelineLayouts[PARTICLE_FHS]);
-		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, csIndex++));
-		X_RETURN(m_pipelines[PARTICLE_FHS], state->GetPipeline(*m_computePipelineCache, L"ParticleFHS"), false);
 	}
 
 	// Particle emission

@@ -15,7 +15,7 @@ public:
 
 	bool Init(XUSG::CommandList* pCommandList, uint32_t numParticles,
 		std::shared_ptr<XUSG::DescriptorTableCache> descriptorTableCache,
-		std::vector<XUSG::Resource> &uploaders, const XUSG::InputLayout& inputLayout,
+		std::vector<XUSG::Resource> &uploaders, const XUSG::InputLayout* pInputLayout,
 		XUSG::Format rtFormat, XUSG::Format dsFormat);
 	bool SetEmitterCount(const XUSG::CommandList* pCommandList, XUSG::RawBuffer& counter,
 		XUSG::Resource* pEmitterSource);
@@ -33,9 +33,6 @@ public:
 		const DirectX::XMFLOAT4X4& world);
 	void RenderFHF(const XUSG::CommandList* pCommandList, const XUSG::Descriptor& rtv,
 		const XUSG::Descriptor* pDsv, const XUSG::DescriptorTable& fluidDescriptorTable,
-		const DirectX::XMFLOAT4X4& world);
-	void ParticleFHS(const XUSG::CommandList* pCommandList,
-		const XUSG::DescriptorTable& fluidDescriptorTable,
 		const DirectX::XMFLOAT4X4& world);
 	void Visualize(const XUSG::CommandList* pCommandList, const XUSG::Descriptor& rtv,
 		const XUSG::Descriptor* pDsv, const DirectX::XMFLOAT4X4& worldViewProj);
@@ -57,7 +54,6 @@ protected:
 		PARTICLE,
 		PARTICLE_SPH,
 		PARTICLE_FHF,
-		PARTICLE_FHS,
 		EMISSION,
 		VISUALIZE,
 
@@ -109,7 +105,7 @@ protected:
 	};
 
 	bool createPipelineLayouts();
-	bool createPipelines(const XUSG::InputLayout& inputLayout, XUSG::Format rtFormat, XUSG::Format dsFormat);
+	bool createPipelines(const XUSG::InputLayout* pInputLayout, XUSG::Format rtFormat, XUSG::Format dsFormat);
 	bool createDescriptorTables();
 
 	void distribute(const XUSG::CommandList* pCommandList, const XUSG::VertexBuffer& vb,
