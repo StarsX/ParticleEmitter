@@ -13,7 +13,7 @@ RWTexture3D<float4>	g_rwGrid;
 RWTexture3D<float>	g_rwDensity;
 #endif
 
-[numthreads(8, 8, 1)]
+[numthreads(4, 4, 4)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
 #if COMPUTE_VISCOSITY

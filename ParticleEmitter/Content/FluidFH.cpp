@@ -111,15 +111,15 @@ void FluidFH::Simulate(const CommandList* pCommandList, bool hasViscosity)
 	pCommandList->Barrier(numBarriers, barriers);
 
 	// Set pipeline state
-	const auto pipelineIndex = hasViscosity ? TRANSFER_FHF : TRANSFER_FHS;
-	pCommandList->SetComputePipelineLayout(m_pipelineLayouts[pipelineIndex]);
-	pCommandList->SetPipelineState(m_pipelines[pipelineIndex]);
+	pCommandList->SetComputePipelineLayout(m_pipelineLayouts[TRANSFER_FHF]);
+	pCommandList->SetPipelineState(m_pipelines[TRANSFER_FHF]);
 
 	// Set descriptor tables
 	pCommandList->SetComputeDescriptorTable(0, m_cbvUavSrvTables[hasViscosity ?
 		CBV_UAV_SRV_TABLE_TRANSFER_FHF : CBV_UAV_SRV_TABLE_TRANSFER_FHS]);
 
-	pCommandList->Dispatch(DIV_UP(GRID_SIZE_FHF, 8), DIV_UP(GRID_SIZE_FHF, 8), GRID_SIZE_FHF);
+	const auto numGroups = DIV_UP(GRID_SIZE_FHF, 4);
+	pCommandList->Dispatch(numGroups, numGroups, numGroups);
 }
 
 const DescriptorTable& FluidFH::GetDescriptorTable(bool hasViscosity) const
@@ -132,27 +132,16 @@ bool FluidFH::createPipelineLayouts()
 	// Transfer with viscosity
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetRange(0, DescriptorType::UAV, 5, 0, 0,
-			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
+		pipelineLayout->SetRange(0, DescriptorType::UAV, 5, 0, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		X_RETURN(m_pipelineLayouts[TRANSFER_FHF], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
 			PipelineLayoutFlag::NONE, L"TransferFHFLayout"), false);
-	}
-
-	// Transfer without viscosity
-	{
-		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetRange(0, DescriptorType::UAV, 2, 0, 0,
-			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
-		X_RETURN(m_pipelineLayouts[TRANSFER_FHS], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
-			PipelineLayoutFlag::NONE, L"TransferFHSLayout"), false);
 	}
 
 	// Resampling
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetRange(0, DescriptorType::UAV, 1, 0, 0,
-			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
-		pipelineLayout->SetRange(0, DescriptorType::SRV, 1, 0, 0, DescriptorFlag::DESCRIPTORS_VOLATILE);
+		pipelineLayout->SetRange(0, DescriptorType::UAV, 1, 0, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
+		pipelineLayout->SetRange(0, DescriptorType::SRV, 1, 0);
 		pipelineLayout->SetRange(1, DescriptorType::SAMPLER, 1, 0);
 		X_RETURN(m_pipelineLayouts[RESAMPLE], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
 			PipelineLayoutFlag::NONE, L"ResamplingLayout"), false);
@@ -173,16 +162,6 @@ bool FluidFH::createPipelines(Format rtFormat)
 		state->SetPipelineLayout(m_pipelineLayouts[TRANSFER_FHF]);
 		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, csIndex++));
 		X_RETURN(m_pipelines[TRANSFER_FHF], state->GetPipeline(*m_computePipelineCache, L"TransferFHF"), false);
-	}
-
-	// Transfer without viscosity
-	{
-		N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, csIndex, L"CSTransferFHS.cso"), false);
-
-		const auto state = Compute::State::MakeUnique();
-		state->SetPipelineLayout(m_pipelineLayouts[TRANSFER_FHS]);
-		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, csIndex++));
-		X_RETURN(m_pipelines[TRANSFER_FHS], state->GetPipeline(*m_computePipelineCache, L"TransferFHS"), false);
 	}
 
 	// Resampling

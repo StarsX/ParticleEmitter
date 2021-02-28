@@ -27,7 +27,6 @@ protected:
 	enum PipelineIndex : uint8_t
 	{
 		TRANSFER_FHF,
-		TRANSFER_FHS,
 		RESAMPLE,
 
 		NUM_PIPELINE
