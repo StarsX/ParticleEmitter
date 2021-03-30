@@ -42,7 +42,7 @@ bool Emitter::Init(CommandList* pCommandList, uint32_t numParticles,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1,
 		nullptr, 1, nullptr, L"EmitterBuffer"), false);
 
-	auto particleBufferIdx = 0ui8;
+	uint8_t particleBufferIdx = 0;
 	for (auto& particleBuffer : m_particleBuffers)
 	{
 		particleBuffer = StructuredBuffer::MakeUnique();
@@ -508,7 +508,7 @@ bool Emitter::createDescriptorTables()
 		X_RETURN(m_uavTables[UAV_TABLE_COUNTER], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
 	}
 
-	for (auto i = 0ui8; i < 2; ++i)
+	for (uint8_t i = 0; i < 2; ++i)
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		descriptorTable->SetDescriptors(0, 1, &m_particleBuffers[i]->GetUAV());
