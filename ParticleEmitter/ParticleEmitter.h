@@ -55,7 +55,7 @@ private:
 		NUM_SIMULATION_METHOD
 	};
 
-	static const uint32_t FrameCount = 3;
+	static const uint8_t FrameCount = 3;
 
 	std::shared_ptr<XUSG::DescriptorTableCache> m_descriptorTableCache;
 
