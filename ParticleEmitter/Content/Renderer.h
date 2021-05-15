@@ -17,26 +17,21 @@ public:
 		std::vector<XUSG::Resource>& uploaders, const char* fileName,
 		XUSG::Format rtFormat, XUSG::Format dsFormat);
 
-	void UpdateFrame(double time, float timeStep, const DirectX::XMFLOAT4& posScale,
-		DirectX::CXMMATRIX viewProj, bool isPaused);
-	void Render(const XUSG::CommandList* pCommandList, const XUSG::Descriptor& rtv,
-		const XUSG::Descriptor& dsv);
+	void UpdateFrame(uint8_t frameIndex, double time, float timeStep,
+		const DirectX::XMFLOAT4& posScale, DirectX::CXMMATRIX viewProj, bool isPaused);
+	void Render(const XUSG::CommandList* pCommandList, uint8_t frameIndex,
+		const XUSG::Descriptor& rtv, const XUSG::Descriptor& dsv);
 
 	const XUSG::VertexBuffer& GetVertexBuffer() const;
 	const XUSG::IndexBuffer& GetIndexBuffer() const;
 	const XUSG::InputLayout* GetInputLayout() const;
 	const DirectX::XMFLOAT4X4& GetWorldViewProj() const;
-	const DirectX::XMFLOAT4X4& GetWorld() const;
+	const DirectX::XMFLOAT3X4& GetWorld() const;
 	uint32_t GetNumIndices() const;
+
+	static const uint8_t FrameCount = 3;
 	
 protected:
-	struct BasePassConstants
-	{
-		DirectX::XMFLOAT4X4	WorldViewProj;
-		DirectX::XMFLOAT4X4	WorldViewProjPrev;
-		DirectX::XMFLOAT4X4	World;
-	};
-
 	bool createVB(XUSG::CommandList* pCommandList, uint32_t numVert,
 		uint32_t stride, const uint8_t* pData, std::vector<XUSG::Resource>& uploaders);
 	bool createIB(XUSG::CommandList* pCommandList, uint32_t numIndices,
@@ -51,7 +46,8 @@ protected:
 	uint8_t		m_frameParity;
 
 	DirectX::XMUINT2	m_viewport;
-	BasePassConstants	m_cbBasePass;
+	DirectX::XMFLOAT3X4	m_world;
+	DirectX::XMFLOAT4X4	m_worldViewProj;
 
 	const XUSG::InputLayout* m_pInputLayout;
 	XUSG::PipelineLayout	m_pipelineLayout;
@@ -62,6 +58,8 @@ protected:
 
 	XUSG::VertexBuffer::uptr	m_vertexBuffer;
 	XUSG::IndexBuffer::uptr		m_indexBuffer;
+
+	XUSG::ConstantBuffer::uptr	m_cbBasePass;
 
 	XUSG::ShaderPool::uptr				m_shaderPool;
 	XUSG::Graphics::PipelineCache::uptr	m_graphicsPipelineCache;

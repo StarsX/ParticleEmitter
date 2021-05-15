@@ -8,6 +8,30 @@ using namespace std;
 using namespace DirectX;
 using namespace XUSG;
 
+struct EmitterInfo
+{
+	DirectX::XMUINT3 Indices;
+	DirectX::XMFLOAT2 Barycoord;
+};
+
+struct ParticleInfo
+{
+	DirectX::XMFLOAT3 Pos;
+	DirectX::XMFLOAT3 Velocity;
+	float LifeTime;
+};
+
+struct CBPerObject
+{
+	DirectX::XMFLOAT3X4 World;
+	DirectX::XMFLOAT3X4 WorldPrev;
+	float TimeStep;
+	uint32_t BaseSeed;
+	uint32_t NumEmitters;
+	uint32_t NumParticles;
+	DirectX::XMFLOAT4X4 ViewProj;
+};
+
 Emitter::Emitter(const Device& device) :
 	m_device(device),
 	m_srvTable(nullptr)
@@ -27,7 +51,7 @@ bool Emitter::Init(CommandList* pCommandList, uint32_t numParticles,
 	vector<Resource>& uploaders, const InputLayout* pInputLayout,
 	Format rtFormat, Format dsFormat)
 {
-	m_cbParticle.NumParticles = numParticles;
+	m_numParticles = numParticles;
 	m_descriptorTableCache = descriptorTableCache;
 
 	// Create resources and pipelines
@@ -62,6 +86,11 @@ bool Emitter::Init(CommandList* pCommandList, uint32_t numParticles,
 	m_particleBuffers[REARRANGED]->Upload(pCommandList, uploaders.back(), particles.data(),
 		sizeof(ParticleInfo) * numParticles);
 
+	// Create constant buffer
+	m_cbPerObject = ConstantBuffer::MakeUnique();
+	N_RETURN(m_cbPerObject->Create(m_device, sizeof(CBPerObject[FrameCount]), FrameCount,
+		nullptr, MemoryType::UPLOAD, L"CBParticle"), false);
+
 	N_RETURN(createPipelineLayouts(), false);
 	N_RETURN(createPipelines(pInputLayout, rtFormat, dsFormat), false);
 	N_RETURN(createDescriptorTables(), false);
@@ -72,7 +101,7 @@ bool Emitter::Init(CommandList* pCommandList, uint32_t numParticles,
 bool Emitter::SetEmitterCount(const CommandList* pCommandList, RawBuffer& counter,
 	Resource* pEmitterSource)
 {
-	m_cbParticle.NumEmitters = *reinterpret_cast<const uint32_t*>(counter.Map(nullptr));
+	m_numEmitters = *reinterpret_cast<const uint32_t*>(counter.Map(nullptr));
 #if defined(_DEBUG)
 	cout << m_cbParticle.NumEmitters << endl;
 #endif
@@ -86,7 +115,7 @@ bool Emitter::SetEmitterCount(const CommandList* pCommandList, RawBuffer& counte
 		*pEmitterSource = m_emitterBuffer->GetResource();
 
 		m_emitterBuffer = StructuredBuffer::MakeUnique();
-		N_RETURN(m_emitterBuffer->Create(m_device, m_cbParticle.NumEmitters, sizeof(EmitterInfo), ResourceFlag::NONE,
+		N_RETURN(m_emitterBuffer->Create(m_device, m_numEmitters, sizeof(EmitterInfo), ResourceFlag::NONE,
 			MemoryType::DEFAULT, 1, nullptr, 0, nullptr, L"EmitterBuffer"), false);
 
 		// Set barriers
@@ -95,7 +124,7 @@ bool Emitter::SetEmitterCount(const CommandList* pCommandList, RawBuffer& counte
 
 		// Copy data
 		pCommandList->CopyBufferRegion(m_emitterBuffer->GetResource(), 0,
-			*pEmitterSource, 0, sizeof(EmitterInfo) * m_cbParticle.NumEmitters);
+			*pEmitterSource, 0, sizeof(EmitterInfo) * m_numEmitters);
 
 		// Set destination barrier
 		numBarriers = m_emitterBuffer->SetBarrier(barriers, ResourceState::NON_PIXEL_SHADER_RESOURCE);
@@ -118,11 +147,20 @@ bool Emitter::SetEmitterCount(const CommandList* pCommandList, RawBuffer& counte
 	return true;
 }
 
-void Emitter::UpdateFrame(double time, float timeStep, const CXMMATRIX viewProj)
+void Emitter::UpdateFrame(uint8_t frameIndex, double time, float timeStep,
+	const XMFLOAT3X4& world, const CXMMATRIX viewProj)
 {
 	m_time = time;
-	m_cbParticle.TimeStep = timeStep;
-	XMStoreFloat4x4(&m_cbParticle.ViewProj, XMMatrixTranspose(viewProj));
+
+	const auto pCbData = reinterpret_cast<CBPerObject*>(m_cbPerObject->Map(frameIndex));
+	pCbData->WorldPrev = m_world;
+	pCbData->World = world;
+	pCbData->TimeStep = timeStep;
+	pCbData->BaseSeed = rand();
+	pCbData->NumEmitters = m_numEmitters;
+	pCbData->NumParticles = m_numParticles;
+	XMStoreFloat4x4(&pCbData->ViewProj, XMMatrixTranspose(viewProj));
+	m_world = pCbData->World;
 }
 
 void Emitter::Distribute(const CommandList* pCommandList, const RawBuffer& counter,
@@ -159,14 +197,10 @@ void Emitter::Distribute(const CommandList* pCommandList, const RawBuffer& count
 	pCommandList->CopyResource(counter.GetResource(), m_counter->GetResource());
 }
 
-void Emitter::EmitParticle(const CommandList* pCommandList, uint32_t numParticles,
-	const DescriptorTable& uavTable, const XMFLOAT4X4& world)
+void Emitter::EmitParticle(const CommandList* pCommandList, uint8_t frameIndex,
+	uint32_t numParticles, const DescriptorTable& uavTable)
 {
-	m_cbParticle.WorldPrev = m_cbParticle.World;
-	m_cbParticle.World = world;
-	m_cbParticle.BaseSeed = rand();
-
-	if (m_cbParticle.BaseSeed <= 0.0) return;
+	//if (m_cbParticle.BaseSeed <= 0.0) return;
 
 	const DescriptorPool descriptorPools[] =
 	{
@@ -179,20 +213,16 @@ void Emitter::EmitParticle(const CommandList* pCommandList, uint32_t numParticle
 	pCommandList->SetPipelineState(m_pipelines[EMISSION]);
 
 	// Set descriptor tables
-	pCommandList->SetCompute32BitConstants(0, SizeOfInUint32(CBEmission), &m_cbParticle);
+	pCommandList->SetComputeRootConstantBufferView(0, m_cbPerObject->GetResource(), m_cbPerObject->GetCBVOffset(frameIndex));
 	pCommandList->SetComputeDescriptorTable(1, m_srvTable);
 	pCommandList->SetComputeDescriptorTable(2, uavTable);
 
 	pCommandList->Dispatch(DIV_UP(numParticles, 64), 1, 1);
 }
 
-void Emitter::Render(const CommandList* pCommandList, const Descriptor& rtv,
-	const Descriptor* pDsv, const XMFLOAT4X4& world)
+void Emitter::Render(const CommandList* pCommandList, uint8_t frameIndex,
+	const Descriptor& rtv, const Descriptor* pDsv)
 {
-	m_cbParticle.WorldPrev = m_cbParticle.World;
-	m_cbParticle.World = world;
-	m_cbParticle.BaseSeed = rand();
-
 	const DescriptorPool descriptorPools[] =
 	{
 		m_descriptorTableCache->GetDescriptorPool(CBV_SRV_UAV_POOL),
@@ -208,21 +238,16 @@ void Emitter::Render(const CommandList* pCommandList, const Descriptor& rtv,
 	pCommandList->IASetPrimitiveTopology(PrimitiveTopology::POINTLIST);
 
 	// Set descriptor tables
-	pCommandList->SetGraphics32BitConstants(0, SizeOfInUint32(m_cbParticle), &m_cbParticle);
+	pCommandList->SetGraphicsRootConstantBufferView(0, m_cbPerObject->GetResource(), m_cbPerObject->GetCBVOffset(frameIndex));
 	pCommandList->SetGraphicsDescriptorTable(1, m_srvTable);
 	pCommandList->SetGraphicsDescriptorTable(2, m_uavTables[UAV_TABLE_PARTICLE]);
 
-	pCommandList->Draw(m_cbParticle.NumParticles, 1, 0, 0);
+	pCommandList->Draw(m_numParticles, 1, 0, 0);
 }
 
-void Emitter::RenderSPH(const CommandList* pCommandList, const Descriptor& rtv,
-	const Descriptor* pDsv, const DescriptorTable& fluidDescriptorTable,
-	const XMFLOAT4X4& world)
+void Emitter::RenderSPH(const CommandList* pCommandList, uint8_t frameIndex, const Descriptor& rtv,
+	const Descriptor* pDsv, const DescriptorTable& fluidDescriptorTable)
 {
-	m_cbParticle.WorldPrev = m_cbParticle.World;
-	m_cbParticle.World = world;
-	m_cbParticle.BaseSeed = rand();
-
 	const DescriptorPool descriptorPools[] =
 	{
 		m_descriptorTableCache->GetDescriptorPool(CBV_SRV_UAV_POOL),
@@ -244,22 +269,17 @@ void Emitter::RenderSPH(const CommandList* pCommandList, const Descriptor& rtv,
 	pCommandList->IASetPrimitiveTopology(PrimitiveTopology::POINTLIST);
 
 	// Set descriptor tables
-	pCommandList->SetGraphics32BitConstants(0, SizeOfInUint32(m_cbParticle), &m_cbParticle);
+	pCommandList->SetGraphicsRootConstantBufferView(0, m_cbPerObject->GetResource(), m_cbPerObject->GetCBVOffset(frameIndex));
 	pCommandList->SetGraphicsDescriptorTable(1, m_srvTable);
 	pCommandList->SetGraphicsDescriptorTable(2, m_uavTables[UAV_TABLE_PARTICLE1]);
 	pCommandList->SetGraphicsDescriptorTable(3, fluidDescriptorTable);
 
-	pCommandList->Draw(m_cbParticle.NumParticles, 1, 0, 0);
+	pCommandList->Draw(m_numParticles, 1, 0, 0);
 }
 
-void Emitter::RenderFHF(const CommandList* pCommandList, const Descriptor& rtv,
-	const Descriptor* pDsv, const DescriptorTable& fluidDescriptorTable,
-	const XMFLOAT4X4& world)
+void Emitter::RenderFHF(const CommandList* pCommandList, uint8_t frameIndex, const Descriptor& rtv,
+	const Descriptor* pDsv, const DescriptorTable& fluidDescriptorTable)
 {
-	m_cbParticle.WorldPrev = m_cbParticle.World;
-	m_cbParticle.World = world;
-	m_cbParticle.BaseSeed = rand();
-
 	const DescriptorPool descriptorPools[] =
 	{
 		m_descriptorTableCache->GetDescriptorPool(CBV_SRV_UAV_POOL),
@@ -276,13 +296,13 @@ void Emitter::RenderFHF(const CommandList* pCommandList, const Descriptor& rtv,
 	pCommandList->IASetPrimitiveTopology(PrimitiveTopology::POINTLIST);
 
 	// Set descriptor tables
-	pCommandList->SetGraphics32BitConstants(0, SizeOfInUint32(m_cbParticle), &m_cbParticle);
+	pCommandList->SetGraphicsRootConstantBufferView(0, m_cbPerObject->GetResource(), m_cbPerObject->GetCBVOffset(frameIndex));
 	pCommandList->SetGraphicsDescriptorTable(1, m_srvTable);
 	pCommandList->SetGraphicsDescriptorTable(2, m_uavTables[UAV_TABLE_PARTICLE]);
 	pCommandList->SetGraphicsDescriptorTable(3, fluidDescriptorTable);
 	pCommandList->SetGraphicsDescriptorTable(4, m_samplerTable);
 
-	pCommandList->Draw(m_cbParticle.NumParticles, 1, 0, 0);
+	pCommandList->Draw(m_numParticles, 1, 0, 0);
 }
 
 void Emitter::Visualize(const CommandList* pCommandList, const Descriptor& rtv,
@@ -306,7 +326,7 @@ void Emitter::Visualize(const CommandList* pCommandList, const Descriptor& rtv,
 	pCommandList->SetGraphics32BitConstants(0, SizeOfInUint32(XMFLOAT4X4), &worldViewProj);
 	pCommandList->SetGraphicsDescriptorTable(1, m_srvTable);
 
-	pCommandList->Draw(m_cbParticle.NumEmitters, 1, 0, 0);
+	pCommandList->Draw(m_numEmitters, 1, 0, 0);
 }
 
 StructuredBuffer::uptr* Emitter::GetParticleBuffers()
@@ -319,7 +339,7 @@ bool Emitter::createPipelineLayouts()
 	// Generate uniformized distribution
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetConstants(0, SizeOfInUint32(XMFLOAT4X4), 0, 0, Shader::Stage::VS);
+		pipelineLayout->SetConstants(0, SizeOfInUint32(XMFLOAT3X4), 0, 0, Shader::Stage::VS);
 		pipelineLayout->SetRange(1, DescriptorType::UAV, 1, 0, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		pipelineLayout->SetShaderStage(1, Shader::Stage::DS);
 		X_RETURN(m_pipelineLayouts[DISTRIBUTE], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
@@ -329,7 +349,7 @@ bool Emitter::createPipelineLayouts()
 	// Particle emission and integration
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetConstants(0, SizeOfInUint32(CBParticle), 0, 0, Shader::Stage::VS);
+		pipelineLayout->SetRootCBV(0, 0, 0, Shader::Stage::VS);
 		pipelineLayout->SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorFlag::DATA_STATIC);
 		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		pipelineLayout->SetShaderStage(1, Shader::Stage::VS);
@@ -341,7 +361,7 @@ bool Emitter::createPipelineLayouts()
 	// Particle emission and integration for SPH
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetConstants(0, SizeOfInUint32(CBParticle), 0, 0, Shader::Stage::VS);
+		pipelineLayout->SetRootCBV(0, 0, 0, Shader::Stage::VS);
 		pipelineLayout->SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorFlag::DATA_STATIC);
 		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		pipelineLayout->SetRange(3, DescriptorType::UAV, 2, 1, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
@@ -356,7 +376,7 @@ bool Emitter::createPipelineLayouts()
 	// Particle emission and integration for fast hybrid fluid
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetConstants(0, SizeOfInUint32(CBParticle), 0, 0, Shader::Stage::VS);
+		pipelineLayout->SetRootCBV(0, 0, 0, Shader::Stage::VS);
 		pipelineLayout->SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorFlag::DATA_STATIC);
 		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		pipelineLayout->SetRange(3, DescriptorType::CBV, 1, 1, 0, DescriptorFlag::DATA_STATIC);
@@ -374,7 +394,7 @@ bool Emitter::createPipelineLayouts()
 	// Particle emission
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetConstants(0, SizeOfInUint32(CBEmission), 0, 0, Shader::Stage::CS);
+		pipelineLayout->SetRootCBV(0, 0, 0, Shader::Stage::CS);
 		pipelineLayout->SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorFlag::DATA_STATIC);
 		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0, 0,
 			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
@@ -537,8 +557,9 @@ void Emitter::distribute(const CommandList* pCommandList, const VertexBuffer& vb
 
 	// Set descriptor tables
 	scale *= density;
-	const auto transform = XMMatrixTranspose(XMMatrixScaling(scale, scale, scale));
-	pCommandList->SetGraphics32BitConstants(0, SizeOfInUint32(XMFLOAT4X4), &transform);
+	XMFLOAT3X4 transform;
+	XMStoreFloat3x4(&transform, XMMatrixScaling(scale, scale, scale));
+	pCommandList->SetGraphics32BitConstants(0, SizeOfInUint32(XMFLOAT3X4), &transform);
 	pCommandList->SetGraphicsDescriptorTable(1, m_uavTables[UAV_TABLE_EMITTER]);
 
 	pCommandList->IASetVertexBuffers(0, 1, &vb.GetVBV());

@@ -10,6 +10,13 @@ using namespace std;
 using namespace DirectX;
 using namespace XUSG;
 
+struct CBBasePass
+{
+	DirectX::XMFLOAT4X4	WorldViewProj;
+	DirectX::XMFLOAT4X4	WorldViewProjPrev;
+	DirectX::XMFLOAT3X4	World;
+};
+
 Renderer::Renderer(const Device& device) :
 	m_device(device),
 	m_frameParity(0)
@@ -35,6 +42,11 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width, uint32_t height,
 	N_RETURN(createVB(pCommandList, objLoader.GetNumVertices(), objLoader.GetVertexStride(), objLoader.GetVertices(), uploaders), false);
 	N_RETURN(createIB(pCommandList, objLoader.GetNumIndices(), objLoader.GetIndices(), uploaders), false);
 
+	// Create constant buffer
+	m_cbBasePass = ConstantBuffer::MakeUnique();
+	N_RETURN(m_cbBasePass->Create(m_device, sizeof(CBBasePass[FrameCount]), FrameCount,
+		nullptr, MemoryType::UPLOAD, L"CBBasePass"), false);
+
 	// Create pipelines
 	N_RETURN(createInputLayout(), false);
 	N_RETURN(createPipelineLayouts(), false);
@@ -43,8 +55,8 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width, uint32_t height,
 	return true;
 }
 
-void Renderer::UpdateFrame(double time, float timeStep, const XMFLOAT4& posScale,
-	CXMMATRIX viewProj, bool isPaused)
+void Renderer::UpdateFrame(uint8_t frameIndex, double time, float timeStep,
+	const XMFLOAT4& posScale, CXMMATRIX viewProj, bool isPaused)
 {
 	{
 		static auto angle = 0.0f;
@@ -62,16 +74,19 @@ void Renderer::UpdateFrame(double time, float timeStep, const XMFLOAT4& posScale
 		const auto world = XMMatrixScaling(posScale.w, posScale.w, posScale.w) * rot *
 			XMMatrixTranslation(pos.x, pos.y, pos.z);
 
-		m_cbBasePass.WorldViewProjPrev = m_cbBasePass.WorldViewProj;
-		XMStoreFloat4x4(&m_cbBasePass.WorldViewProj, XMMatrixTranspose(world * viewProj));
-		XMStoreFloat4x4(&m_cbBasePass.World, XMMatrixTranspose(world));
+		const auto pCbData = reinterpret_cast<CBBasePass*>(m_cbBasePass->Map(frameIndex));
+		pCbData->WorldViewProjPrev = m_worldViewProj;
+		XMStoreFloat4x4(&pCbData->WorldViewProj, XMMatrixTranspose(world * viewProj));
+		XMStoreFloat3x4(&pCbData->World, world);
+		m_worldViewProj = pCbData->WorldViewProj;
+		m_world = pCbData->World;
 	}
 
 	m_frameParity = !m_frameParity;
 }
 
-void Renderer::Render(const CommandList* pCommandList, const Descriptor& rtv,
-	const Descriptor& dsv)
+void Renderer::Render(const CommandList* pCommandList, uint8_t frameIndex,
+	const Descriptor& rtv, const Descriptor& dsv)
 {
 	// Set framebuffer
 	pCommandList->OMSetRenderTargets(1, &rtv, &dsv);
@@ -89,7 +104,7 @@ void Renderer::Render(const CommandList* pCommandList, const Descriptor& rtv,
 	pCommandList->IASetPrimitiveTopology(PrimitiveTopology::TRIANGLELIST);
 
 	// Set descriptor tables
-	pCommandList->SetGraphics32BitConstants(0, SizeOfInUint32(m_cbBasePass), &m_cbBasePass);
+	pCommandList->SetComputeRootConstantBufferView(0, m_cbBasePass->GetResource(), m_cbBasePass->GetCBVOffset(frameIndex));
 
 	pCommandList->IASetVertexBuffers(0, 1, &m_vertexBuffer->GetVBV());
 	pCommandList->IASetIndexBuffer(m_indexBuffer->GetIBV());
@@ -112,14 +127,14 @@ const InputLayout* Renderer::GetInputLayout() const
 	return m_pInputLayout;
 }
 
-const DirectX::XMFLOAT4X4& Renderer::GetWorldViewProj() const
+/*const DirectX::XMFLOAT4X4& Renderer::GetWorldViewProj() const
 {
-	return m_cbBasePass.WorldViewProj;
-}
+	return m_worldViewProj;
+}*/
 
-const DirectX::XMFLOAT4X4& Renderer::GetWorld() const
+const DirectX::XMFLOAT3X4& Renderer::GetWorld() const
 {
-	return m_cbBasePass.World;
+	return m_world;
 }
 
 uint32_t Renderer::GetNumIndices() const
@@ -173,7 +188,7 @@ bool Renderer::createPipelineLayouts()
 {
 	// This is a pipeline layout for base pass
 	const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-	pipelineLayout->SetConstants(0, SizeOfInUint32(BasePassConstants), 0, 0, Shader::Stage::VS);
+	pipelineLayout->SetRootCBV(0, 0, 0, Shader::Stage::VS);
 	X_RETURN(m_pipelineLayout, pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
 		PipelineLayoutFlag::ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT, L"BasePassLayout"), false);
 

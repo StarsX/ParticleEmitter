@@ -55,7 +55,8 @@ private:
 		NUM_SIMULATION_METHOD
 	};
 
-	static const uint8_t FrameCount = 3;
+	static const uint8_t FrameCount = Emitter::FrameCount;
+	static_assert(FrameCount == Renderer::FrameCount, "ParticleEmitter::FrameCount should be equal to Renderer::FrameCount");
 
 	std::shared_ptr<XUSG::DescriptorTableCache> m_descriptorTableCache;
 

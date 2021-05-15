@@ -24,7 +24,7 @@ cbuffer cbPerObject
 {
 	matrix	g_worldViewProj;
 	matrix	g_worldViewProjPrev;
-	matrix	g_world;
+	float3x3 g_world;
 };
 
 //--------------------------------------------------------------------------------------
@@ -36,7 +36,7 @@ VSOut main(VSIn input)
 
 	const float4 pos = { input.Pos, 1.0 };
 	output.Pos = mul(pos, g_worldViewProj);
-	output.Norm = mul(input.Nrm, (float3x3)g_world);
+	output.Norm = mul(input.Nrm, g_world);
 
 	return output;
 }

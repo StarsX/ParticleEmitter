@@ -192,7 +192,7 @@ void ParticleEmitter::LoadAssets()
 	// Create SPH fluid simulator
 	m_fluidSPH = make_unique<FluidSPH>(m_device);
 	if (!m_fluidSPH) ThrowIfFailed(E_FAIL);
-	if (!m_fluidSPH->Init(pCommandList, numParticles, m_descriptorTableCache, m_emitter->GetParticleBuffers()))
+	if (!m_fluidSPH->Init(pCommandList, numParticles, m_descriptorTableCache, uploaders, m_emitter->GetParticleBuffers()))
 		ThrowIfFailed(E_FAIL);
 
 	// Create fast hybrid fluid simulator
@@ -281,8 +281,8 @@ void ParticleEmitter::OnUpdate()
 	const auto view = XMLoadFloat4x4(&m_view);
 	const auto proj = XMLoadFloat4x4(&m_proj);
 	const auto viewProj = view * proj;
-	m_renderer->UpdateFrame(time, timeStep, m_meshPosScale, viewProj, m_isPaused);
-	m_emitter->UpdateFrame(time, timeStep, viewProj);
+	m_renderer->UpdateFrame(m_frameIndex, time, timeStep, m_meshPosScale, viewProj, m_isPaused);
+	m_emitter->UpdateFrame(m_frameIndex, time, timeStep, m_renderer->GetWorld(), viewProj);
 	switch (m_simulationMethod)
 	{
 	case SPH_SIMULATION:
@@ -443,24 +443,23 @@ void ParticleEmitter::PopulateCommandList()
 	pCommandList->ClearRenderTargetView(m_renderTargets[m_frameIndex]->GetRTV(), clearColor);
 	pCommandList->ClearDepthStencilView(m_depth->GetDSV(), ClearFlag::DEPTH, 1.0f);
 	
-	m_renderer->Render(pCommandList, m_renderTargets[m_frameIndex]->GetRTV(), m_depth->GetDSV());
+	m_renderer->Render(pCommandList, m_frameIndex, m_renderTargets[m_frameIndex]->GetRTV(), m_depth->GetDSV());
 
 	// Fluid simulation
 	switch (m_simulationMethod)
 	{
 	case SPH_SIMULATION:
-		m_emitter->RenderSPH(pCommandList, m_renderTargets[m_frameIndex]->GetRTV(), &m_depth->GetDSV(),
-			m_fluidSPH->GetDescriptorTable(), m_renderer->GetWorld());
+		m_emitter->RenderSPH(pCommandList, m_frameIndex, m_renderTargets[m_frameIndex]->GetRTV(),
+			&m_depth->GetDSV(), m_fluidSPH->GetDescriptorTable());
 		m_fluidSPH->Simulate(pCommandList);
 		break;
 	case FAST_HYBRID_FLUID:
-		m_emitter->RenderFHF(pCommandList, m_renderTargets[m_frameIndex]->GetRTV(), &m_depth->GetDSV(),
-			m_fluidFH->GetDescriptorTable(), m_renderer->GetWorld());
+		m_emitter->RenderFHF(pCommandList, m_frameIndex, m_renderTargets[m_frameIndex]->GetRTV(),
+			&m_depth->GetDSV(), m_fluidFH->GetDescriptorTable());
 		m_fluidFH->Simulate(pCommandList);
 		break;
 	default:
-		m_emitter->Render(pCommandList, m_renderTargets[m_frameIndex]->GetRTV(),
-			&m_depth->GetDSV(), m_renderer->GetWorld());
+		m_emitter->Render(pCommandList, m_frameIndex, m_renderTargets[m_frameIndex]->GetRTV(), &m_depth->GetDSV());
 	}
 
 	// Indicate that the back buffer will now be used to present.

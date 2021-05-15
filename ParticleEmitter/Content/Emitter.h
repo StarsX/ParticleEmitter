@@ -20,24 +20,25 @@ public:
 	bool SetEmitterCount(const XUSG::CommandList* pCommandList, XUSG::RawBuffer& counter,
 		XUSG::Resource* pEmitterSource);
 
-	void UpdateFrame(double time, float timeStep, const DirectX::CXMMATRIX viewProj);
+	void UpdateFrame(uint8_t frameIndex, double time, float timeStep,
+		const DirectX::XMFLOAT3X4& world, const DirectX::CXMMATRIX viewProj);
 	void Distribute(const XUSG::CommandList* pCommandList, const XUSG::RawBuffer& counter,
 		const XUSG::VertexBuffer& vb, const XUSG::IndexBuffer& ib, uint32_t numIndices,
 		float density, float scale);
-	void EmitParticle(const XUSG::CommandList* pCommandList, uint32_t numParticles,
-		const XUSG::DescriptorTable& uavTable, const DirectX::XMFLOAT4X4& world);
-	void Render(const XUSG::CommandList* pCommandList, const XUSG::Descriptor& rtv,
-		const XUSG::Descriptor* pDsv, const DirectX::XMFLOAT4X4& world);
-	void RenderSPH(const XUSG::CommandList* pCommandList, const XUSG::Descriptor& rtv,
-		const XUSG::Descriptor* pDsv, const XUSG::DescriptorTable& fluidDescriptorTable,
-		const DirectX::XMFLOAT4X4& world);
-	void RenderFHF(const XUSG::CommandList* pCommandList, const XUSG::Descriptor& rtv,
-		const XUSG::Descriptor* pDsv, const XUSG::DescriptorTable& fluidDescriptorTable,
-		const DirectX::XMFLOAT4X4& world);
+	void EmitParticle(const XUSG::CommandList* pCommandList, uint8_t frameIndex,
+		uint32_t numParticles, const XUSG::DescriptorTable& uavTable);
+	void Render(const XUSG::CommandList* pCommandList, uint8_t frameIndex,
+		const XUSG::Descriptor& rtv, const XUSG::Descriptor* pDsv);
+	void RenderSPH(const XUSG::CommandList* pCommandList, uint8_t frameIndex, const XUSG::Descriptor& rtv,
+		const XUSG::Descriptor* pDsv, const XUSG::DescriptorTable& fluidDescriptorTable);
+	void RenderFHF(const XUSG::CommandList* pCommandList, uint8_t frameIndex, const XUSG::Descriptor& rtv,
+		const XUSG::Descriptor* pDsv, const XUSG::DescriptorTable& fluidDescriptorTable);
 	void Visualize(const XUSG::CommandList* pCommandList, const XUSG::Descriptor& rtv,
 		const XUSG::Descriptor* pDsv, const DirectX::XMFLOAT4X4& worldViewProj);
 
 	XUSG::StructuredBuffer::uptr* GetParticleBuffers();
+
+	static const uint8_t FrameCount = 3;
 	
 protected:
 	enum ParticleBufferIndex : uint8_t
@@ -76,34 +77,6 @@ protected:
 		NUM_UAV_TABLE
 	};
 
-	struct EmitterInfo
-	{
-		DirectX::XMUINT3 Indices;
-		DirectX::XMFLOAT2 Barycoord;
-	};
-
-	struct ParticleInfo
-	{
-		DirectX::XMFLOAT3 Pos;
-		DirectX::XMFLOAT3 Velocity;
-		float LifeTime;
-	};
-
-	struct CBEmission
-	{
-		DirectX::XMFLOAT4X4 World;
-		DirectX::XMFLOAT4X4 WorldPrev;
-		float TimeStep;
-		uint32_t BaseSeed;
-		uint32_t NumEmitters;
-	};
-
-	struct CBParticle : public CBEmission
-	{
-		uint32_t NumParticles;
-		DirectX::XMFLOAT4X4 ViewProj;
-	};
-
 	bool createPipelineLayouts();
 	bool createPipelines(const XUSG::InputLayout* pInputLayout, XUSG::Format rtFormat, XUSG::Format dsFormat);
 	bool createDescriptorTables();
@@ -132,6 +105,10 @@ protected:
 	XUSG::StructuredBuffer::uptr m_emitterBuffer;
 	XUSG::StructuredBuffer::uptr m_particleBuffers[NUM_PARTICLE_BUFFER];
 
-	CBParticle				m_cbParticle;
+	XUSG::ConstantBuffer::uptr m_cbPerObject;
+
 	double					m_time;
+	uint32_t				m_numParticles;
+	uint32_t				m_numEmitters;
+	DirectX::XMFLOAT3X4		m_world;
 };

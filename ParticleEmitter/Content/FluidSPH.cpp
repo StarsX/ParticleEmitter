@@ -18,11 +18,6 @@ FluidSPH::FluidSPH(const Device& device) :
 	m_computePipelineCache = Compute::PipelineCache::MakeUnique(device);
 	m_pipelineLayoutCache = PipelineLayoutCache::MakeUnique(device);
 	m_prefixSumUtil.SetDevice(device);
-
-	const XMFLOAT4 boundary(BOUNDARY_SPH);
-	m_cbSimulationData.SmoothRadius = boundary.w * 2.0f / GRID_SIZE_SPH;
-	m_cbSimulationData.PressureStiffness = 200.0f;
-	m_cbSimulationData.RestDensity = 1000.0f;
 }
 
 FluidSPH::~FluidSPH()
@@ -31,17 +26,11 @@ FluidSPH::~FluidSPH()
 
 bool FluidSPH::Init(CommandList* pCommandList, uint32_t numParticles,
 	shared_ptr<DescriptorTableCache> descriptorTableCache,
-	StructuredBuffer::uptr* pParticleBuffers)
+	vector<Resource>& uploaders, StructuredBuffer::uptr* pParticleBuffers)
 {
-	m_cbSimulationData.NumParticles = numParticles;
+	m_numParticles = numParticles;
 	m_descriptorTableCache = descriptorTableCache;
 	m_pParticleBuffers = pParticleBuffers;
-
-	const float mass = 1310.72f / numParticles;
-	const float viscosity = 0.1f;
-	m_cbSimulationData.DensityCoef = mass * 315.0f / (64.0f * XM_PI * pow(m_cbSimulationData.SmoothRadius, 9.0f));
-	m_cbSimulationData.PressureGradCoef = mass * -45.0f / (XM_PI * pow(m_cbSimulationData.SmoothRadius, 6.0f));
-	m_cbSimulationData.ViscosityLaplaceCoef = mass * viscosity * 45.0f / (XM_PI * pow(m_cbSimulationData.SmoothRadius, 6.0f));
 
 	// Create resources
 	m_gridBuffer = TypedBuffer::MakeUnique();
@@ -63,6 +52,28 @@ bool FluidSPH::Init(CommandList* pCommandList, uint32_t numParticles,
 	N_RETURN(m_forceBuffer->Create(m_device, numParticles, sizeof(uint16_t[4]),
 		Format::R16G16B16A16_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
 		1, nullptr, 1, nullptr, L"ForceBuffer"), false);
+
+	// Create constant buffer
+	m_cbSimulation = ConstantBuffer::MakeUnique();
+	N_RETURN(m_cbSimulation->Create(m_device, sizeof(CBSimulation), 1,
+		nullptr, MemoryType::DEFAULT, L"CBSimulationSPH"), false);
+	uploaders.emplace_back();
+	CBSimulation cbSimulation;
+	{
+		const XMFLOAT4 boundary(BOUNDARY_SPH);
+		cbSimulation.SmoothRadius = boundary.w * 2.0f / GRID_SIZE_SPH;
+		cbSimulation.PressureStiffness = 200.0f;
+		cbSimulation.RestDensity = 1000.0f;
+
+		const float mass = 1310.72f / numParticles;
+		const float viscosity = 0.1f;
+		cbSimulation.NumParticles = numParticles;
+		cbSimulation.DensityCoef = mass * 315.0f / (64.0f * XM_PI * pow(cbSimulation.SmoothRadius, 9.0f));
+		cbSimulation.PressureGradCoef = mass * -45.0f / (XM_PI * pow(cbSimulation.SmoothRadius, 6.0f));
+		cbSimulation.ViscosityLaplaceCoef = mass * viscosity * 45.0f / (XM_PI * pow(cbSimulation.SmoothRadius, 6.0f));
+	}
+	m_cbSimulation->Upload(pCommandList, uploaders.back(),
+		&cbSimulation, sizeof(CBSimulation));
 
 	// Set prefix sum
 	m_prefixSumUtil.SetPrefixSum(pCommandList, g_gridBufferSize > 4096,
@@ -126,7 +137,7 @@ bool FluidSPH::createPipelineLayouts()
 	// Density
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetConstants(0, SizeOfInUint32(CBSimulation), 0, 0, Shader::Stage::CS);
+		pipelineLayout->SetRootCBV(0, 0, 0, Shader::Stage::CS);
 		pipelineLayout->SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorFlag::DESCRIPTORS_VOLATILE);
 		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0, 0,
 			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
@@ -137,7 +148,7 @@ bool FluidSPH::createPipelineLayouts()
 	// Force
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetConstants(0, SizeOfInUint32(CBSimulation), 0, 0, Shader::Stage::CS);
+		pipelineLayout->SetRootCBV(0, 0, 0, Shader::Stage::CS);
 		pipelineLayout->SetRange(1, DescriptorType::SRV, 3, 0, 0, DescriptorFlag::DESCRIPTORS_VOLATILE);
 		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0, 0,
 			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
@@ -266,7 +277,7 @@ void FluidSPH::rearrange(const CommandList* pCommandList)
 	pCommandList->SetComputeDescriptorTable(0, m_srvTables[SRV_TABLE_REARRANGLE]);
 	pCommandList->SetComputeDescriptorTable(1, m_uavTables[UAV_TABLE_PARTICLE]);
 
-	pCommandList->Dispatch(DIV_UP(m_cbSimulationData.NumParticles, 64), 1, 1);
+	pCommandList->Dispatch(DIV_UP(m_numParticles, 64), 1, 1);
 }
 
 void FluidSPH::density(const CommandList* pCommandList)
@@ -282,11 +293,11 @@ void FluidSPH::density(const CommandList* pCommandList)
 	pCommandList->SetPipelineState(m_pipelines[DENSITY]);
 
 	// Set descriptor tables
-	pCommandList->SetCompute32BitConstants(0, SizeOfInUint32(m_cbSimulationData), &m_cbSimulationData);
+	pCommandList->SetComputeRootConstantBufferView(0, m_cbSimulation->GetResource());
 	pCommandList->SetComputeDescriptorTable(1, m_srvTables[SRV_TABLE_SPH]);
 	pCommandList->SetComputeDescriptorTable(2, m_uavTables[UAV_TABLE_DENSITY]);
 
-	pCommandList->Dispatch(DIV_UP(m_cbSimulationData.NumParticles, 64), 1, 1);
+	pCommandList->Dispatch(DIV_UP(m_numParticles, 64), 1, 1);
 }
 
 void FluidSPH::force(const CommandList* pCommandList)
@@ -302,9 +313,9 @@ void FluidSPH::force(const CommandList* pCommandList)
 	pCommandList->SetPipelineState(m_pipelines[FORCE]);
 
 	// Set descriptor tables
-	pCommandList->SetCompute32BitConstants(0, SizeOfInUint32(m_cbSimulationData), &m_cbSimulationData);
+	pCommandList->SetComputeRootConstantBufferView(0, m_cbSimulation->GetResource());
 	pCommandList->SetComputeDescriptorTable(1, m_srvTables[SRV_TABLE_SPH]);
 	pCommandList->SetComputeDescriptorTable(2, m_uavTables[UAV_TABLE_FORCE]);
 
-	pCommandList->Dispatch(DIV_UP(m_cbSimulationData.NumParticles, 64), 1, 1);
+	pCommandList->Dispatch(DIV_UP(m_numParticles, 64), 1, 1);
 }

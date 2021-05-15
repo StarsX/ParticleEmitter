@@ -77,7 +77,6 @@ protected:
 	XUSG::Texture3D::uptr	m_density;
 	XUSG::Texture3D::uptr	m_densityU;
 	XUSG::Texture3D::uptr	m_velocity[3];
-	XUSG::ConstantBuffer::uptr m_cbSimulation;
 
-	CBSimulation			m_cbSimulationData;
+	XUSG::ConstantBuffer::uptr m_cbSimulation;
 };

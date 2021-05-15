@@ -9,14 +9,6 @@ using namespace std;
 using namespace DirectX;
 using namespace XUSG;
 
-struct CBPerObject
-{
-	DirectX::XMVECTOR LocalSpaceLightPt;
-	DirectX::XMVECTOR LocalSpaceEyePt;
-	DirectX::XMMATRIX ScreenToLocal;
-	DirectX::XMMATRIX WorldViewProj;
-};
-
 FluidFH::FluidFH(const Device& device) :
 	m_device(device)
 {
@@ -25,11 +17,6 @@ FluidFH::FluidFH(const Device& device) :
 	m_computePipelineCache = Compute::PipelineCache::MakeUnique(device);
 	m_pipelineLayoutCache = PipelineLayoutCache::MakeUnique(device);
 	m_prefixSumUtil.SetDevice(device);
-
-	const XMFLOAT4 boundary(BOUNDARY_FHF);
-	m_cbSimulationData.SmoothRadius = boundary.w * 2.0f / GRID_SIZE_FHF;
-	m_cbSimulationData.PressureStiffness = 200.0f;
-	m_cbSimulationData.RestDensity = 1000.0f;
 }
 
 FluidFH::~FluidFH()
@@ -41,11 +28,6 @@ bool FluidFH::Init(CommandList* pCommandList, uint32_t numParticles,
 	vector<Resource>& uploaders, Format rtFormat)
 {
 	m_descriptorTableCache = descriptorTableCache;
-
-	const float mass = 1310.72f / numParticles;
-	m_cbSimulationData.DensityCoef = mass * 315.0f / (64.0f * XM_PI * pow(m_cbSimulationData.SmoothRadius, 9.0f));
-	m_cbSimulationData.VelocityCoef = mass * 15.0f / (2.0f * XM_PI * pow(m_cbSimulationData.SmoothRadius, 3.0f));
-	m_cbSimulationData.Viscosity = 0.1f;
 	
 	// Create resources
 	m_grid = Texture3D::MakeUnique();
@@ -78,12 +60,25 @@ bool FluidFH::Init(CommandList* pCommandList, uint32_t numParticles,
 			L"VelocityZ"), false);
 	}
 
+	// Create constant buffer
 	m_cbSimulation = ConstantBuffer::MakeUnique();
 	N_RETURN(m_cbSimulation->Create(m_device, sizeof(CBSimulation), 1,
 		nullptr, MemoryType::DEFAULT, L"CbSimultionFHF"), false);
 	uploaders.emplace_back();
+	CBSimulation cbSimulation;
+	{
+		const XMFLOAT4 boundary(BOUNDARY_FHF);
+		cbSimulation.SmoothRadius = boundary.w * 2.0f / GRID_SIZE_FHF;
+		cbSimulation.PressureStiffness = 200.0f;
+		cbSimulation.RestDensity = 1000.0f;
+
+		const float mass = 1310.72f / numParticles;
+		cbSimulation.DensityCoef = mass * 315.0f / (64.0f * XM_PI * pow(cbSimulation.SmoothRadius, 9.0f));
+		cbSimulation.VelocityCoef = mass * 15.0f / (2.0f * XM_PI * pow(cbSimulation.SmoothRadius, 3.0f));
+		cbSimulation.Viscosity = 0.1f;
+	}
 	m_cbSimulation->Upload(pCommandList, uploaders.back(),
-		&m_cbSimulationData, sizeof(CBSimulation));
+		&cbSimulation, sizeof(CBSimulation));
 
 	// Create pipelines
 	N_RETURN(createPipelineLayouts(), false);

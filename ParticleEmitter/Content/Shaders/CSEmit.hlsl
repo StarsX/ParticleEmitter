@@ -23,8 +23,8 @@ struct Vertex
 //--------------------------------------------------------------------------------------
 cbuffer cbPerObject
 {
-	matrix	g_world;
-	matrix	g_worldPrev;
+	float4x3 g_world;
+	float4x3 g_worldPrev;
 	float	g_timeStep;
 	uint	g_baseSeed;
 	uint	g_numEmitters;
@@ -78,11 +78,11 @@ Particle Emit(uint particleId, Particle particle)
 		v[i] = g_roVertices[emitter.Indices[i]].Pos;
 
 	// Get emitter position
-	const float3 pos = mul(barycoord, v);
+	const float4 pos = float4(mul(barycoord, v), 1.0);
 
 	// Particle emission
-	const float3 posPrev = WorldToSimulationSpace(mul(float4(pos, 1.0), g_worldPrev).xyz);
-	particle.Pos = WorldToSimulationSpace(mul(float4(pos, 1.0), g_world).xyz);
+	const float3 posPrev = WorldToSimulationSpace(mul(pos, g_worldPrev));
+	particle.Pos = WorldToSimulationSpace(mul(pos, g_world));
 	particle.Velocity = (particle.Pos - posPrev) / g_timeStep;
 	particle.LifeTime = g_fullLife + rand(seed, 1000) / 1000.0f;
 

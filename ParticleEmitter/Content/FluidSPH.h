@@ -16,7 +16,7 @@ public:
 
 	bool Init(XUSG::CommandList* pCommandList, uint32_t numParticles,
 		std::shared_ptr<XUSG::DescriptorTableCache> descriptorTableCache,
-		XUSG::StructuredBuffer::uptr* pParticleBuffers);
+		std::vector<XUSG::Resource>& uploaders, XUSG::StructuredBuffer::uptr* pParticleBuffers);
 	
 	void UpdateFrame();
 	void Simulate(const XUSG::CommandList* pCommandList);
@@ -100,5 +100,7 @@ protected:
 
 	XUSG::StructuredBuffer::uptr* m_pParticleBuffers;
 
-	CBSimulation			m_cbSimulationData;
+	XUSG::ConstantBuffer::uptr m_cbSimulation;
+
+	uint32_t m_numParticles;
 };

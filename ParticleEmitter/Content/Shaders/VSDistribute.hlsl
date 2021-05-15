@@ -22,7 +22,7 @@ struct VSOut
 //--------------------------------------------------------------------------------------
 cbuffer cbPerObject
 {
-	matrix	g_transform;
+	float4x3	g_transform;
 };
 
 //--------------------------------------------------------------------------------------
@@ -32,7 +32,7 @@ VSOut main(VSIn input, uint vId : SV_VERTEXID)
 {
 	VSOut output;
 
-	output.Pos = mul(float4(input.Pos, 1.0), g_transform).xyz;
+	output.Pos = mul(float4(input.Pos, 1.0), g_transform);
 	output.VId = vId;
 
 	return output;
