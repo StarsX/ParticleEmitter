@@ -10,20 +10,20 @@
 class Emitter
 {
 public:
-	Emitter(const XUSG::Device &device);
+	Emitter(const XUSG::Device::sptr&device);
 	virtual ~Emitter();
 
 	bool Init(XUSG::CommandList* pCommandList, uint32_t numParticles,
-		std::shared_ptr<XUSG::DescriptorTableCache> descriptorTableCache,
-		std::vector<XUSG::Resource> &uploaders, const XUSG::InputLayout* pInputLayout,
+		const XUSG::DescriptorTableCache::sptr& descriptorTableCache,
+		std::vector<XUSG::Resource::uptr> &uploaders, const XUSG::InputLayout* pInputLayout,
 		XUSG::Format rtFormat, XUSG::Format dsFormat);
-	bool SetEmitterCount(const XUSG::CommandList* pCommandList, XUSG::RawBuffer& counter,
-		XUSG::Resource* pEmitterSource);
+	bool SetEmitterCount(const XUSG::CommandList* pCommandList, XUSG::RawBuffer* pCounter,
+		XUSG::StructuredBuffer::uptr& emitterScratch);
 
 	void UpdateFrame(uint8_t frameIndex, double time, float timeStep,
 		const DirectX::XMFLOAT3X4& world, const DirectX::CXMMATRIX viewProj);
-	void Distribute(const XUSG::CommandList* pCommandList, const XUSG::RawBuffer& counter,
-		const XUSG::VertexBuffer& vb, const XUSG::IndexBuffer& ib, uint32_t numIndices,
+	void Distribute(const XUSG::CommandList* pCommandList, const XUSG::RawBuffer* pCounter,
+		const XUSG::VertexBuffer* pVB, const XUSG::IndexBuffer* pIB, uint32_t numIndices,
 		float density, float scale);
 	void EmitParticle(const XUSG::CommandList* pCommandList, uint8_t frameIndex,
 		uint32_t numParticles, const XUSG::DescriptorTable& uavTable);
@@ -36,7 +36,7 @@ public:
 	void Visualize(const XUSG::CommandList* pCommandList, const XUSG::Descriptor& rtv,
 		const XUSG::Descriptor* pDsv, const DirectX::XMFLOAT4X4& worldViewProj);
 
-	XUSG::StructuredBuffer::uptr* GetParticleBuffers();
+	const XUSG::StructuredBuffer::uptr* GetParticleBuffers() const;
 
 	static const uint8_t FrameCount = 3;
 	
@@ -81,10 +81,10 @@ protected:
 	bool createPipelines(const XUSG::InputLayout* pInputLayout, XUSG::Format rtFormat, XUSG::Format dsFormat);
 	bool createDescriptorTables();
 
-	void distribute(const XUSG::CommandList* pCommandList, const XUSG::VertexBuffer& vb,
-		const XUSG::IndexBuffer& ib, uint32_t numIndices, float density, float scale);
+	void distribute(const XUSG::CommandList* pCommandList, const XUSG::VertexBuffer* pVB,
+		const XUSG::IndexBuffer* pIB, uint32_t numIndices, float density, float scale);
 	
-	XUSG::Device m_device;
+	XUSG::Device::sptr m_device;
 
 	XUSG::ShaderPool::uptr				m_shaderPool;
 	XUSG::Graphics::PipelineCache::uptr	m_graphicsPipelineCache;
@@ -101,7 +101,7 @@ protected:
 
 	XUSG::Descriptor		m_srvVertexBuffer;
 
-	XUSG::RawBuffer::uptr	m_counter;
+	XUSG::RawBuffer::sptr	m_counter;
 	XUSG::StructuredBuffer::uptr m_emitterBuffer;
 	XUSG::StructuredBuffer::uptr m_particleBuffers[NUM_PARTICLE_BUFFER];
 

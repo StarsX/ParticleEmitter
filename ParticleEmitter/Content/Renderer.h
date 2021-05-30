@@ -10,11 +10,11 @@
 class Renderer
 {
 public:
-	Renderer(const XUSG::Device& device);
+	Renderer(const XUSG::Device::sptr& device);
 	virtual ~Renderer();
 
 	bool Init(XUSG::CommandList* pCommandList, uint32_t width, uint32_t height,
-		std::vector<XUSG::Resource>& uploaders, const char* fileName,
+		std::vector<XUSG::Resource::uptr>& uploaders, const char* fileName,
 		XUSG::Format rtFormat, XUSG::Format dsFormat);
 
 	void UpdateFrame(uint8_t frameIndex, double time, float timeStep,
@@ -22,25 +22,24 @@ public:
 	void Render(const XUSG::CommandList* pCommandList, uint8_t frameIndex,
 		const XUSG::Descriptor& rtv, const XUSG::Descriptor& dsv);
 
-	const XUSG::VertexBuffer& GetVertexBuffer() const;
-	const XUSG::IndexBuffer& GetIndexBuffer() const;
+	const XUSG::VertexBuffer* GetVertexBuffer() const;
+	const XUSG::IndexBuffer* GetIndexBuffer() const;
 	const XUSG::InputLayout* GetInputLayout() const;
-	const DirectX::XMFLOAT4X4& GetWorldViewProj() const;
 	const DirectX::XMFLOAT3X4& GetWorld() const;
 	uint32_t GetNumIndices() const;
 
 	static const uint8_t FrameCount = 3;
 	
 protected:
-	bool createVB(XUSG::CommandList* pCommandList, uint32_t numVert,
-		uint32_t stride, const uint8_t* pData, std::vector<XUSG::Resource>& uploaders);
+	bool createVB(XUSG::CommandList* pCommandList, uint32_t numVert, uint32_t stride,
+		const uint8_t* pData, std::vector<XUSG::Resource::uptr>& uploaders);
 	bool createIB(XUSG::CommandList* pCommandList, uint32_t numIndices,
-		const uint32_t* pData, std::vector<XUSG::Resource>& uploaders);
+		const uint32_t* pData, std::vector<XUSG::Resource::uptr>& uploaders);
 	bool createInputLayout();
 	bool createPipelineLayouts();
 	bool createPipelines(XUSG::Format rtFormat, XUSG::Format dsFormat);
 
-	XUSG::Device m_device;
+	XUSG::Device::sptr m_device;
 
 	uint32_t	m_numIndices;
 	uint8_t		m_frameParity;

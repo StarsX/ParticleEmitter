@@ -11,12 +11,12 @@
 class FluidFH
 {
 public:
-	FluidFH(const XUSG::Device& device);
+	FluidFH(const XUSG::Device::sptr& device);
 	virtual ~FluidFH();
 
 	bool Init(XUSG::CommandList* pCommandList, uint32_t numParticles,
-		std::shared_ptr<XUSG::DescriptorTableCache> descriptorTableCache,
-		std::vector<XUSG::Resource>& uploaders, XUSG::Format rtFormat);
+		const XUSG::DescriptorTableCache::sptr& descriptorTableCache,
+		std::vector<XUSG::Resource::uptr>& uploaders, XUSG::Format rtFormat);
 
 	void UpdateFrame();
 	void Simulate(const XUSG::CommandList* pCommandList, bool hasViscosity = true);
@@ -56,7 +56,7 @@ protected:
 	bool createPipelines(XUSG::Format rtFormat);
 	bool createDescriptorTables();
 
-	XUSG::Device m_device;
+	XUSG::Device::sptr m_device;
 
 	XUSG::ShaderPool::uptr				m_shaderPool;
 	XUSG::Graphics::PipelineCache::uptr	m_graphicsPipelineCache;

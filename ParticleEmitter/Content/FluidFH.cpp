@@ -9,13 +9,13 @@ using namespace std;
 using namespace DirectX;
 using namespace XUSG;
 
-FluidFH::FluidFH(const Device& device) :
+FluidFH::FluidFH(const Device::sptr& device) :
 	m_device(device)
 {
 	m_shaderPool = ShaderPool::MakeUnique();
-	m_graphicsPipelineCache = Graphics::PipelineCache::MakeUnique(device);
-	m_computePipelineCache = Compute::PipelineCache::MakeUnique(device);
-	m_pipelineLayoutCache = PipelineLayoutCache::MakeUnique(device);
+	m_graphicsPipelineCache = Graphics::PipelineCache::MakeUnique(device.get());
+	m_computePipelineCache = Compute::PipelineCache::MakeUnique(device.get());
+	m_pipelineLayoutCache = PipelineLayoutCache::MakeUnique(device.get());
 	m_prefixSumUtil.SetDevice(device);
 }
 
@@ -24,47 +24,47 @@ FluidFH::~FluidFH()
 }
 
 bool FluidFH::Init(CommandList* pCommandList, uint32_t numParticles,
-	shared_ptr<DescriptorTableCache> descriptorTableCache,
-	vector<Resource>& uploaders, Format rtFormat)
+	const DescriptorTableCache::sptr& descriptorTableCache,
+	vector<Resource::uptr>& uploaders, Format rtFormat)
 {
 	m_descriptorTableCache = descriptorTableCache;
 	
 	// Create resources
 	m_grid = Texture3D::MakeUnique();
-	N_RETURN(m_grid->Create(m_device, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
+	N_RETURN(m_grid->Create(m_device.get(), GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
 		Format::R16G16B16A16_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS |
 		ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS, 1, MemoryType::DEFAULT,
 		L"VelocityDensity"), false);
 
 	m_density = Texture3D::MakeUnique();
-	N_RETURN(m_density->Create(m_device, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
+	N_RETURN(m_density->Create(m_device.get(), GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
 		Format::R16_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS |
 		ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS, 1, MemoryType::DEFAULT,
 		L"Density"), false);
 
 	m_densityU = Texture3D::MakeUnique();
-	N_RETURN(m_densityU->Create(m_device, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
+	N_RETURN(m_densityU->Create(m_device.get(), GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
 		Format::R32_UINT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1,
 		MemoryType::DEFAULT, L"EncodedDensity"), false);
 
 	for (auto& velocity : m_velocity) velocity = Texture3D::MakeUnique();
 	{
-		N_RETURN(m_velocity[0]->Create(m_device, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
+		N_RETURN(m_velocity[0]->Create(m_device.get(), GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
 			Format::R32_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, MemoryType::DEFAULT,
 			L"VelocityX"), false);
-		N_RETURN(m_velocity[1]->Create(m_device, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
+		N_RETURN(m_velocity[1]->Create(m_device.get(), GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
 			Format::R32_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, MemoryType::DEFAULT,
 			L"VelocityY"), false);
-		N_RETURN(m_velocity[2]->Create(m_device, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
+		N_RETURN(m_velocity[2]->Create(m_device.get(), GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
 			Format::R32_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, MemoryType::DEFAULT,
 			L"VelocityZ"), false);
 	}
 
 	// Create constant buffer
 	m_cbSimulation = ConstantBuffer::MakeUnique();
-	N_RETURN(m_cbSimulation->Create(m_device, sizeof(CBSimulation), 1,
+	N_RETURN(m_cbSimulation->Create(m_device.get(), sizeof(CBSimulation), 1,
 		nullptr, MemoryType::DEFAULT, L"CbSimultionFHF"), false);
-	uploaders.emplace_back();
+	uploaders.emplace_back(Resource::MakeUnique());
 	CBSimulation cbSimulation;
 	{
 		const XMFLOAT4 boundary(BOUNDARY_FHF);
@@ -77,7 +77,7 @@ bool FluidFH::Init(CommandList* pCommandList, uint32_t numParticles,
 		cbSimulation.VelocityCoef = mass * 15.0f / (2.0f * XM_PI * pow(cbSimulation.SmoothRadius, 3.0f));
 		cbSimulation.Viscosity = 0.1f;
 	}
-	m_cbSimulation->Upload(pCommandList, uploaders.back(),
+	m_cbSimulation->Upload(pCommandList, uploaders.back().get(),
 		&cbSimulation, sizeof(CBSimulation));
 
 	// Create pipelines
@@ -128,7 +128,7 @@ bool FluidFH::createPipelineLayouts()
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
 		pipelineLayout->SetRange(0, DescriptorType::UAV, 5, 0, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
-		X_RETURN(m_pipelineLayouts[TRANSFER_FHF], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
+		X_RETURN(m_pipelineLayouts[TRANSFER_FHF], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
 			PipelineLayoutFlag::NONE, L"TransferFHFLayout"), false);
 	}
 
@@ -138,7 +138,7 @@ bool FluidFH::createPipelineLayouts()
 		pipelineLayout->SetRange(0, DescriptorType::UAV, 1, 0, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		pipelineLayout->SetRange(0, DescriptorType::SRV, 1, 0);
 		pipelineLayout->SetRange(1, DescriptorType::SAMPLER, 1, 0);
-		X_RETURN(m_pipelineLayouts[RESAMPLE], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
+		X_RETURN(m_pipelineLayouts[RESAMPLE], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
 			PipelineLayoutFlag::NONE, L"ResamplingLayout"), false);
 	}
 
@@ -156,7 +156,7 @@ bool FluidFH::createPipelines(Format rtFormat)
 		const auto state = Compute::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[TRANSFER_FHF]);
 		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, csIndex++));
-		X_RETURN(m_pipelines[TRANSFER_FHF], state->GetPipeline(*m_computePipelineCache, L"TransferFHF"), false);
+		X_RETURN(m_pipelines[TRANSFER_FHF], state->GetPipeline(m_computePipelineCache.get(), L"TransferFHF"), false);
 	}
 
 	// Resampling
@@ -166,7 +166,7 @@ bool FluidFH::createPipelines(Format rtFormat)
 		const auto state = Compute::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[RESAMPLE]);
 		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, csIndex++));
-		X_RETURN(m_pipelines[RESAMPLE], state->GetPipeline(*m_computePipelineCache, L"Resampling"), false);
+		X_RETURN(m_pipelines[RESAMPLE], state->GetPipeline(m_computePipelineCache.get(), L"Resampling"), false);
 	}
 
 	return true;
@@ -183,7 +183,7 @@ bool FluidFH::createDescriptorTables()
 			m_grid->GetSRV()
 		};
 		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_PARTICLE_FHF], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_PARTICLE_FHF], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 	}
 
 	{
@@ -197,13 +197,13 @@ bool FluidFH::createDescriptorTables()
 			m_grid->GetUAV()
 		};
 		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_TRANSFER_FHF], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_TRANSFER_FHF], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 	}
 
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		descriptorTable->SetDescriptors(0, 1, &m_cbSimulation->GetCBV());
-		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_PARTICLE_FHS], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_PARTICLE_FHS], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 	}
 
 	{
@@ -214,15 +214,15 @@ bool FluidFH::createDescriptorTables()
 			m_density->GetUAV()
 		};
 		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_TRANSFER_FHS], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_TRANSFER_FHS], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 	}
 
 	// Create the sampler
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		const auto samplerAnisoWrap = SamplerPreset::LINEAR_CLAMP;
-		descriptorTable->SetSamplers(0, 1, &samplerAnisoWrap, *m_descriptorTableCache);
-		X_RETURN(m_samplerTable, descriptorTable->GetSamplerTable(*m_descriptorTableCache), false);
+		descriptorTable->SetSamplers(0, 1, &samplerAnisoWrap, m_descriptorTableCache.get());
+		X_RETURN(m_samplerTable, descriptorTable->GetSamplerTable(m_descriptorTableCache.get()), false);
 	}
 
 	return true;

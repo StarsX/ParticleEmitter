@@ -180,6 +180,7 @@ COPY /Y "$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Common\d3d12.h" />
     <ClInclude Include="Common\d3dx12.h" />
     <ClInclude Include="Common\dds.h" />
     <ClInclude Include="Common\DXFramework.h" />
@@ -194,7 +195,6 @@ COPY /Y "$(ProjectDir)XUSG\Bin\$(Platform)\$(Configuration)\*.dll" "$(ProjectDir
     <ClInclude Include="ParticleEmitter.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="XUSG\Core\XUSG.h" />
-    <ClInclude Include="XUSG\Core\XUSG_DX12.h" />
     <ClInclude Include="XUSG\Optional\XUSGComputeUtil.h" />
     <ClInclude Include="XUSG\Optional\XUSGObjLoader.h" />
   </ItemGroup>

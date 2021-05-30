@@ -11,13 +11,14 @@
 class FluidSPH
 {
 public:
-	FluidSPH(const XUSG::Device& device);
+	FluidSPH(const XUSG::Device::sptr& device);
 	virtual ~FluidSPH();
 
 	bool Init(XUSG::CommandList* pCommandList, uint32_t numParticles,
-		std::shared_ptr<XUSG::DescriptorTableCache> descriptorTableCache,
-		std::vector<XUSG::Resource>& uploaders, XUSG::StructuredBuffer::uptr* pParticleBuffers);
-	
+		const XUSG::DescriptorTableCache::sptr& descriptorTableCache,
+		std::vector<XUSG::Resource::uptr>& uploaders,
+		const XUSG::StructuredBuffer::uptr* pParticleBuffers);
+
 	void UpdateFrame();
 	void Simulate(const XUSG::CommandList* pCommandList);
 
@@ -77,7 +78,7 @@ protected:
 	void density(const XUSG::CommandList* pCommandList);
 	void force(const XUSG::CommandList* pCommandList);
 
-	XUSG::Device m_device;
+	XUSG::Device::sptr m_device;
 
 	XUSG::ShaderPool::uptr				m_shaderPool;
 	XUSG::Compute::PipelineCache::uptr	m_computePipelineCache;
@@ -98,7 +99,7 @@ protected:
 	XUSG::TypedBuffer::uptr	m_densityBuffer;
 	XUSG::TypedBuffer::uptr	m_forceBuffer;
 
-	XUSG::StructuredBuffer::uptr* m_pParticleBuffers;
+	const XUSG::StructuredBuffer::uptr* m_pParticleBuffers;
 
 	XUSG::ConstantBuffer::uptr m_cbSimulation;
 

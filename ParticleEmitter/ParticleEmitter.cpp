@@ -90,7 +90,9 @@ void ParticleEmitter::LoadPipeline()
 	{
 		dxgiAdapter = nullptr;
 		ThrowIfFailed(factory->EnumAdapters1(i, &dxgiAdapter));
-		hr = D3D12CreateDevice(dxgiAdapter.get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device));
+
+		m_device = Device::MakeShared();
+		hr = m_device->Create(dxgiAdapter.get(), D3D_FEATURE_LEVEL_11_0);
 	}
 
 	dxgiAdapter->GetDesc1(&dxgiAdapterDesc);
@@ -99,7 +101,8 @@ void ParticleEmitter::LoadPipeline()
 	ThrowIfFailed(hr);
 
 	D3D12_FEATURE_DATA_D3D12_OPTIONS featureData = {};
-	hr = m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &featureData, sizeof(featureData));
+	const auto pDevice = static_cast<ID3D12Device*>(m_device->GetHandle());
+	hr = pDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &featureData, sizeof(featureData));
 	if (SUCCEEDED(hr))
 	{
 		// TypedUAVLoadAdditionalFormats contains a Boolean that tells you whether the feature is supported or not
@@ -108,55 +111,44 @@ void ParticleEmitter::LoadPipeline()
 			// Can assume “all-or-nothing” subset is supported (e.g. R32G32B32A32_FLOAT)
 			// Cannot assume other formats are supported, so we check:
 			D3D12_FEATURE_DATA_FORMAT_SUPPORT formatSupport = { DXGI_FORMAT_B8G8R8A8_UNORM, D3D12_FORMAT_SUPPORT1_NONE, D3D12_FORMAT_SUPPORT2_NONE };
-			hr = m_device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &formatSupport, sizeof(formatSupport));
+			hr = pDevice->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &formatSupport, sizeof(formatSupport));
 			if (SUCCEEDED(hr) && (formatSupport.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_LOAD))
 				m_typedUAV = true;
 		}
 	}
 
 	// Create the command queue.
-	N_RETURN(m_device->GetCommandQueue(m_commandQueue, CommandListType::DIRECT, CommandQueueFlag::NONE), ThrowIfFailed(E_FAIL));
+	m_commandQueue = CommandQueue::MakeUnique();
+	N_RETURN(m_commandQueue->Create(m_device.get(), CommandListType::DIRECT, CommandQueueFlag::NONE,
+		0, 0, L"CommandQueue"), ThrowIfFailed(E_FAIL));
 
 	// Describe and create the swap chain.
-	DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
-	swapChainDesc.BufferCount = FrameCount;
-	swapChainDesc.Width = m_width;
-	swapChainDesc.Height = m_height;
-	swapChainDesc.Format = GetDXGIFormat(Format::B8G8R8A8_UNORM);
-	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	swapChainDesc.SampleDesc.Count = 1;
-
-	com_ptr<IDXGISwapChain1> swapChain;
-	ThrowIfFailed(factory->CreateSwapChainForHwnd(
-		m_commandQueue.get(),		// Swap chain needs the queue so that it can force a flush on it.
-		Win32Application::GetHwnd(),
-		&swapChainDesc,
-		nullptr,
-		nullptr,
-		&swapChain
-	));
+	m_swapChain = SwapChain::MakeUnique();
+	N_RETURN(m_swapChain->Create(factory.Get(), Win32Application::GetHwnd(), m_commandQueue.get(),
+		FrameCount, m_width, m_height, Format::B8G8R8A8_UNORM), ThrowIfFailed(E_FAIL));
 
 	// This sample does not support fullscreen transitions.
 	ThrowIfFailed(factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
 
-	ThrowIfFailed(swapChain->QueryInterface(IID_PPV_ARGS (&m_swapChain)));
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
-	m_descriptorTableCache = DescriptorTableCache::MakeShared(m_device, L"DescriptorTableCache");
+	m_descriptorTableCache = DescriptorTableCache::MakeShared(m_device.get(), L"DescriptorTableCache");
 
 	// Create frame resources.
 	// Create a RTV and a command allocator for each frame.
 	for (uint8_t n = 0; n < FrameCount; ++n)
 	{
 		m_renderTargets[n] = RenderTarget::MakeUnique();
-		N_RETURN(m_renderTargets[n]->CreateFromSwapChain(m_device, m_swapChain, n), ThrowIfFailed(E_FAIL));
-		N_RETURN(m_device->GetCommandAllocator(m_commandAllocators[n], CommandListType::DIRECT), ThrowIfFailed(E_FAIL));
+		N_RETURN(m_renderTargets[n]->CreateFromSwapChain(m_device.get(), m_swapChain.get(), n), ThrowIfFailed(E_FAIL));
+
+		m_commandAllocators[n] = CommandAllocator::MakeUnique();
+		N_RETURN(m_commandAllocators[n]->Create(m_device.get(), CommandListType::DIRECT,
+			(L"CommandAllocator" + to_wstring(n)).c_str()), ThrowIfFailed(E_FAIL));
 	}
 
 	// Create output views
 	m_depth = DepthStencil::MakeUnique();
-	m_depth->Create(m_device, m_width, m_height, Format::D24_UNORM_S8_UINT,
+	m_depth->Create(m_device.get(), m_width, m_height, Format::D24_UNORM_S8_UINT,
 		ResourceFlag::DENY_SHADER_RESOURCE, 1, 1, 1, 1.0f, 0, false, L"Depth");
 }
 
@@ -164,16 +156,16 @@ void ParticleEmitter::LoadPipeline()
 void ParticleEmitter::LoadAssets()
 {
 	const auto counter = RawBuffer::MakeUnique();
-	N_RETURN(counter->Create(m_device, sizeof(uint32_t), ResourceFlag::DENY_SHADER_RESOURCE,
+	N_RETURN(counter->Create(m_device.get(), sizeof(uint32_t), ResourceFlag::DENY_SHADER_RESOURCE,
 		MemoryType::READBACK, 0, nullptr, 0), ThrowIfFailed(E_FAIL));
 
 	// Create the command list.
 	m_commandList = CommandList::MakeUnique();
 	const auto pCommandList = m_commandList.get();
-	N_RETURN(m_device->GetCommandList(pCommandList, 0, CommandListType::DIRECT,
-		m_commandAllocators[m_frameIndex], nullptr), ThrowIfFailed(E_FAIL));
+	N_RETURN(pCommandList->Create(m_device.get(), 0, CommandListType::DIRECT,
+		m_commandAllocators[m_frameIndex].get(), nullptr), ThrowIfFailed(E_FAIL));
 
-	vector<Resource> uploaders(0);
+	vector<Resource::uptr> uploaders(0);
 	// Create renderer
 	m_renderer = make_unique<Renderer>(m_device);
 	if (!m_renderer) ThrowIfFailed(E_FAIL);
@@ -207,7 +199,7 @@ void ParticleEmitter::LoadAssets()
 		nullptr, &uploaders, Format::R32_UINT, 1024 * 5 + 387);
 #endif
 
-	m_emitter->Distribute(pCommandList, *counter, m_renderer->GetVertexBuffer(),
+	m_emitter->Distribute(pCommandList, counter.get(), m_renderer->GetVertexBuffer(),
 		m_renderer->GetIndexBuffer(), m_renderer->GetNumIndices(), 32.0f, m_meshPosScale.w);
 
 #if defined(_DEBUG)
@@ -215,12 +207,16 @@ void ParticleEmitter::LoadAssets()
 #endif
 
 	// Close the command list and execute it to begin the initial GPU setup.
-	ThrowIfFailed(pCommandList->Close());
-	m_commandQueue->SubmitCommandList(pCommandList);
+	N_RETURN(pCommandList->Close(), ThrowIfFailed(E_FAIL));
+	m_commandQueue->ExecuteCommandList(pCommandList);
 
 	// Create synchronization objects and wait until assets have been uploaded to the GPU.
 	{
-		if (!m_fence) N_RETURN(m_device->GetFence(m_fence, m_fenceValues[m_frameIndex]++, FenceFlag::NONE), ThrowIfFailed(E_FAIL));
+		if (!m_fence)
+		{
+			m_fence = Fence::MakeUnique();
+			N_RETURN(m_fence->Create(m_device.get(), m_fenceValues[m_frameIndex]++, FenceFlag::NONE, L"Fence"), ThrowIfFailed(E_FAIL));
+		}
 
 		// Create an event handle to use for frame synchronization.
 		m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -237,14 +233,14 @@ void ParticleEmitter::LoadAssets()
 #endif
 
 	// Shrink memory cost
-	Resource pEmitterSource[1];
-	ThrowIfFailed(m_commandAllocators[m_frameIndex]->Reset());
-	ThrowIfFailed(pCommandList->Reset(m_commandAllocators[m_frameIndex], nullptr));
-	N_RETURN(m_emitter->SetEmitterCount(pCommandList, *counter, pEmitterSource), ThrowIfFailed(E_FAIL));
+	StructuredBuffer::uptr emitterScratch = StructuredBuffer::MakeUnique();
+	N_RETURN(m_commandAllocators[m_frameIndex]->Reset(), ThrowIfFailed(E_FAIL));
+	N_RETURN(pCommandList->Reset(m_commandAllocators[m_frameIndex].get(), nullptr), ThrowIfFailed(E_FAIL));
+	N_RETURN(m_emitter->SetEmitterCount(pCommandList, counter.get(), emitterScratch), ThrowIfFailed(E_FAIL));
 
 	// Close the command list and execute it to begin the initial GPU setup.
-	ThrowIfFailed(pCommandList->Close());
-	m_commandQueue->SubmitCommandList(pCommandList);
+	N_RETURN(pCommandList->Close(), ThrowIfFailed(E_FAIL));
+	m_commandQueue->ExecuteCommandList(pCommandList);
 
 	// Create synchronization objects and wait until assets have been uploaded to the GPU.
 	WaitForGpu();
@@ -425,13 +421,14 @@ void ParticleEmitter::PopulateCommandList()
 	// Command list allocators can only be reset when the associated 
 	// command lists have finished execution on the GPU; apps should use 
 	// fences to determine GPU execution progress.
-	ThrowIfFailed(m_commandAllocators[m_frameIndex]->Reset());
+	const auto pCommandAllocator = m_commandAllocators[m_frameIndex].get();
+	N_RETURN(pCommandAllocator->Reset(), ThrowIfFailed(E_FAIL));
 
 	// However, when ExecuteCommandList() is called on a particular command 
 	// list, that command list can then be reset at any time and must be before 
 	// re-recording.
 	const auto pCommandList = m_commandList.get();
-	ThrowIfFailed(pCommandList->Reset(m_commandAllocators[m_frameIndex], nullptr));
+	N_RETURN(pCommandList->Reset(pCommandAllocator, nullptr), ThrowIfFailed(E_FAIL));
 
 	// Record commands.
 	ResourceBarrier barriers[1];

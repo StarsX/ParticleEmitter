@@ -10,7 +10,7 @@ ComputeUtil::ComputeUtil()
 	m_pipelineLayoutCache = PipelineLayoutCache::MakeUnique();
 }
 
-ComputeUtil::ComputeUtil(const Device& device) :
+ComputeUtil::ComputeUtil(const Device::sptr& device) :
 	ComputeUtil()
 {
 	SetDevice(device);
@@ -21,8 +21,8 @@ ComputeUtil::~ComputeUtil()
 }
 
 bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
-	shared_ptr<DescriptorTableCache> descriptorTableCache, TypedBuffer* pBuffer,
-	vector<Resource>* pUploaders, Format format, uint32_t maxElementCount)
+	const DescriptorTableCache::sptr& descriptorTableCache, TypedBuffer* pBuffer,
+	vector<Resource::uptr>* pUploaders, Format format, uint32_t maxElementCount)
 {
 	if (maxElementCount > 1024 * 1024)
 		assert(!"Error: maxElementCount should be no more than 1048576!");
@@ -33,7 +33,7 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 
 	// Create resources
 	m_counter = TypedBuffer::MakeUnique();
-	N_RETURN(m_counter->Create(m_device, 1, sizeof(uint32_t), Format::R32_FLOAT,
+	N_RETURN(m_counter->Create(m_device.get(), 1, sizeof(uint32_t), Format::R32_FLOAT,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::DENY_SHADER_RESOURCE,
 		MemoryType::DEFAULT, 0, nullptr, 1, nullptr, L"GlobalBarrierCounter"), false);
 
@@ -44,14 +44,14 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 		{
 			const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 			descriptorTable->SetDescriptors(0, 1, &pBuffer->GetUAV());
-			X_RETURN(m_uavTables[UAV_TABLE_DATA], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+			X_RETURN(m_uavTables[UAV_TABLE_DATA], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 		}
 
 		// Append a counter UAV table
 		{
 			const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 			descriptorTable->SetDescriptors(0, 1, &m_counter->GetUAV());
-			X_RETURN(m_uavTables[UAV_TABLE_COUNTER], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+			X_RETURN(m_uavTables[UAV_TABLE_COUNTER], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 		}
 	}
 	else
@@ -69,12 +69,12 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 
 		// Create test buffers
 		m_testBuffer = TypedBuffer::MakeUnique();
-		N_RETURN(m_testBuffer->Create(m_device, maxElementCount, stride, format,
+		N_RETURN(m_testBuffer->Create(m_device.get(), maxElementCount, stride, format,
 			ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::DENY_SHADER_RESOURCE,
 			MemoryType::DEFAULT, 0, nullptr, 1, nullptr, L"PrefixSumTestBuffer"), false);
 
 		m_readBack = TypedBuffer::MakeUnique();
-		N_RETURN(m_readBack->Create(m_device, maxElementCount, stride, format,
+		N_RETURN(m_readBack->Create(m_device.get(), maxElementCount, stride, format,
 			ResourceFlag::DENY_SHADER_RESOURCE, MemoryType::READBACK, 0,
 			nullptr, 0, nullptr, L"ReadBackBuffer"), false);
 
@@ -84,14 +84,14 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 		{
 			const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 			descriptorTable->SetDescriptors(0, 1, &m_testBuffer->GetUAV(), TEMPORARY_POOL);
-			X_RETURN(m_uavTables[UAV_TABLE_DATA], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+			X_RETURN(m_uavTables[UAV_TABLE_DATA], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 		}
 
 		// Append a counter UAV table
 		{
 			const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 			descriptorTable->SetDescriptors(0, 1, &m_counter->GetUAV(), TEMPORARY_POOL);
-			X_RETURN(m_uavTables[UAV_TABLE_COUNTER], descriptorTable->GetCbvSrvUavTable(*m_descriptorTableCache), false);
+			X_RETURN(m_uavTables[UAV_TABLE_COUNTER], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 		}
 
 		// Upload test data
@@ -126,8 +126,8 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 		}
 
 		if (!pUploaders) assert(!"Error: if pBufferView is nullptr, pUploaders must not be nullptr!");
-		pUploaders->emplace_back();
-		m_testBuffer->Upload(pCommandList, pUploaders->back(), m_testData.data(),
+		pUploaders->emplace_back(Resource::MakeUnique());
+		m_testBuffer->Upload(pCommandList, pUploaders->back().get(), m_testData.data(),
 			stride * maxElementCount, 0, ResourceState::UNORDERED_ACCESS);
 	}
 
@@ -151,7 +151,7 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 	pipelineLayout->SetConstants(0, SizeOfInUint32(uint32_t[2]), 0);
 	pipelineLayout->SetRange(1, DescriptorType::UAV, 2, 0, 0,
 		DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
-	X_RETURN(m_pipelineLayouts[pipelineIndex], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
+	X_RETURN(m_pipelineLayouts[pipelineIndex], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
 		PipelineLayoutFlag::NONE, L"PrefixSumLayout"), false);
 
 	// Create pipeline
@@ -163,7 +163,7 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 		const auto state = Compute::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[pipelineIndex]);
 		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, pipelineIndex));
-		X_RETURN(m_pipelines[pipelineIndex], state->GetPipeline(*m_computePipelineCache,
+		X_RETURN(m_pipelines[pipelineIndex], state->GetPipeline(m_computePipelineCache.get(),
 			safeMode ? L"PrefixSum1" : L"PrefixSum"), false);
 	}
 
@@ -173,7 +173,7 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
 		pipelineLayout->SetRange(0, DescriptorType::UAV, 1, 0, 0,
 			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
-		X_RETURN(m_pipelineLayouts[pipelineIndex + 1], pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
+		X_RETURN(m_pipelineLayouts[pipelineIndex + 1], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
 			PipelineLayoutFlag::NONE, L"PrefixSum2Layout"), false);
 
 		// Create pipeline
@@ -184,18 +184,18 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 			const auto state = Compute::State::MakeUnique();
 			state->SetPipelineLayout(m_pipelineLayouts[pipelineIndex + 1]);
 			state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, pipelineIndex + 1));
-			X_RETURN(m_pipelines[pipelineIndex + 1], state->GetPipeline(*m_computePipelineCache, L"PrefixSum2"), false);
+			X_RETURN(m_pipelines[pipelineIndex + 1], state->GetPipeline(m_computePipelineCache.get(), L"PrefixSum2"), false);
 		}
 	}
 
 	return true;
 }
 
-void ComputeUtil::SetDevice(const Device& device)
+void ComputeUtil::SetDevice(const Device::sptr& device)
 {
 	m_device = device;
-	m_computePipelineCache->SetDevice(device);
-	m_pipelineLayoutCache->SetDevice(device);
+	m_computePipelineCache->SetDevice(device.get());
+	m_pipelineLayoutCache->SetDevice(device.get());
 }
 
 void ComputeUtil::PrefixSum(const CommandList* pCommandList, uint32_t numElements)
@@ -214,7 +214,7 @@ void ComputeUtil::PrefixSum(const CommandList* pCommandList, uint32_t numElement
 	// Clear counter
 	const uint32_t clear[4] = {};
 	pCommandList->ClearUnorderedAccessViewUint(m_uavTables[UAV_TABLE_COUNTER],
-		m_counter->GetUAV(), m_counter->GetResource(), clear);
+		m_counter->GetUAV(), m_counter.get(), clear);
 
 	// Select pipeline index
 	auto pipelineIndex = m_safeMode ? PREFIX_SUM_UINT1 : PREFIX_SUM_UINT;
@@ -273,7 +273,7 @@ void ComputeUtil::PrefixSum(const CommandList* pCommandList, uint32_t numElement
 		pCommandList->Barrier(numBarriers, &barrier);
 
 		// Copy the counter for readback
-		pCommandList->CopyResource(m_readBack->GetResource(), m_testBuffer->GetResource());
+		pCommandList->CopyResource(m_readBack.get(), m_testBuffer.get());
 	}
 }
 

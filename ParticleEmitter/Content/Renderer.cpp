@@ -17,13 +17,13 @@ struct CBBasePass
 	DirectX::XMFLOAT3X4	World;
 };
 
-Renderer::Renderer(const Device& device) :
+Renderer::Renderer(const Device::sptr& device) :
 	m_device(device),
 	m_frameParity(0)
 {
 	m_shaderPool = ShaderPool::MakeUnique();
-	m_graphicsPipelineCache = Graphics::PipelineCache::MakeUnique(device);
-	m_pipelineLayoutCache = PipelineLayoutCache::MakeUnique(device);
+	m_graphicsPipelineCache = Graphics::PipelineCache::MakeUnique(device.get());
+	m_pipelineLayoutCache = PipelineLayoutCache::MakeUnique(device.get());
 }
 
 Renderer::~Renderer()
@@ -31,7 +31,7 @@ Renderer::~Renderer()
 }
 
 bool Renderer::Init(CommandList* pCommandList, uint32_t width, uint32_t height,
-	vector<Resource>& uploaders, const char* fileName,
+	vector<Resource::uptr>& uploaders, const char* fileName,
 	Format rtFormat, Format dsFormat)
 {
 	m_viewport = XMUINT2(width, height);
@@ -44,7 +44,7 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width, uint32_t height,
 
 	// Create constant buffer
 	m_cbBasePass = ConstantBuffer::MakeUnique();
-	N_RETURN(m_cbBasePass->Create(m_device, sizeof(CBBasePass[FrameCount]), FrameCount,
+	N_RETURN(m_cbBasePass->Create(m_device.get(), sizeof(CBBasePass[FrameCount]), FrameCount,
 		nullptr, MemoryType::UPLOAD, L"CBBasePass"), false);
 
 	// Create pipelines
@@ -104,7 +104,7 @@ void Renderer::Render(const CommandList* pCommandList, uint8_t frameIndex,
 	pCommandList->IASetPrimitiveTopology(PrimitiveTopology::TRIANGLELIST);
 
 	// Set descriptor tables
-	pCommandList->SetComputeRootConstantBufferView(0, m_cbBasePass->GetResource(), m_cbBasePass->GetCBVOffset(frameIndex));
+	pCommandList->SetGraphicsRootConstantBufferView(0, m_cbBasePass.get(), m_cbBasePass->GetCBVOffset(frameIndex));
 
 	pCommandList->IASetVertexBuffers(0, 1, &m_vertexBuffer->GetVBV());
 	pCommandList->IASetIndexBuffer(m_indexBuffer->GetIBV());
@@ -112,25 +112,20 @@ void Renderer::Render(const CommandList* pCommandList, uint8_t frameIndex,
 	pCommandList->DrawIndexed(m_numIndices, 1, 0, 0, 0);
 }
 
-const VertexBuffer& Renderer::GetVertexBuffer() const
+const VertexBuffer* Renderer::GetVertexBuffer() const
 {
-	return *m_vertexBuffer;
+	return m_vertexBuffer.get();
 }
 
-const IndexBuffer& Renderer::GetIndexBuffer() const
+const IndexBuffer* Renderer::GetIndexBuffer() const
 {
-	return *m_indexBuffer;
+	return m_indexBuffer.get();
 }
 
 const InputLayout* Renderer::GetInputLayout() const
 {
 	return m_pInputLayout;
 }
-
-/*const DirectX::XMFLOAT4X4& Renderer::GetWorldViewProj() const
-{
-	return m_worldViewProj;
-}*/
 
 const DirectX::XMFLOAT3X4& Renderer::GetWorld() const
 {
@@ -142,31 +137,31 @@ uint32_t Renderer::GetNumIndices() const
 	return m_numIndices;
 }
 
-bool Renderer::createVB(CommandList* pCommandList, uint32_t numVert,
-	uint32_t stride, const uint8_t* pData, vector<Resource>& uploaders)
+bool Renderer::createVB(CommandList* pCommandList, uint32_t numVert, uint32_t stride,
+	const uint8_t* pData, vector<Resource::uptr>& uploaders)
 {
 	m_vertexBuffer = VertexBuffer::MakeUnique();
-	N_RETURN(m_vertexBuffer->Create(m_device, numVert, stride, ResourceFlag::NONE,
+	N_RETURN(m_vertexBuffer->Create(m_device.get(), numVert, stride, ResourceFlag::NONE,
 		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr, L"MeshVB"), false);
-	uploaders.emplace_back();
+	uploaders.emplace_back(Resource::MakeUnique());
 
-	return m_vertexBuffer->Upload(pCommandList, uploaders.back(), pData,
+	return m_vertexBuffer->Upload(pCommandList, uploaders.back().get(), pData,
 		stride * numVert, 0, ResourceState::VERTEX_AND_CONSTANT_BUFFER |
 		ResourceState::NON_PIXEL_SHADER_RESOURCE);
 }
 
 bool Renderer::createIB(CommandList* pCommandList, uint32_t numIndices,
-	const uint32_t* pData, vector<Resource>& uploaders)
+	const uint32_t* pData, vector<Resource::uptr>& uploaders)
 {
 	m_numIndices = numIndices;
 
 	const uint32_t byteWidth = sizeof(uint32_t) * numIndices;
 	m_indexBuffer = IndexBuffer::MakeUnique();
-	N_RETURN(m_indexBuffer->Create(m_device, byteWidth, Format::R32_UINT, ResourceFlag::NONE,
+	N_RETURN(m_indexBuffer->Create(m_device.get(), byteWidth, Format::R32_UINT, ResourceFlag::NONE,
 		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr, L"MeshIB"), false);
-	uploaders.emplace_back();
+	uploaders.emplace_back(Resource::MakeUnique());
 
-	return m_indexBuffer->Upload(pCommandList, uploaders.back(), pData,
+	return m_indexBuffer->Upload(pCommandList, uploaders.back().get(), pData,
 		byteWidth, 0, ResourceState::INDEX_BUFFER);
 }
 
@@ -189,7 +184,7 @@ bool Renderer::createPipelineLayouts()
 	// This is a pipeline layout for base pass
 	const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
 	pipelineLayout->SetRootCBV(0, 0, 0, Shader::Stage::VS);
-	X_RETURN(m_pipelineLayout, pipelineLayout->GetPipelineLayout(*m_pipelineLayoutCache,
+	X_RETURN(m_pipelineLayout, pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
 		PipelineLayoutFlag::ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT, L"BasePassLayout"), false);
 
 	return true;
@@ -213,7 +208,7 @@ bool Renderer::createPipelines(Format rtFormat, Format dsFormat)
 	state->OMSetNumRenderTargets(1);
 	state->OMSetRTVFormat(0, rtFormat);
 	state->OMSetDSVFormat(dsFormat);
-	X_RETURN(m_pipeline, state->GetPipeline(*m_graphicsPipelineCache, L"BasePass"), false);
+	X_RETURN(m_pipeline, state->GetPipeline(m_graphicsPipelineCache.get(), L"BasePass"), false);
 
 	return true;
 }
