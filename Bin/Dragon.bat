@@ -1,1 +1,1 @@
-start ParticleEmitter.exe -mesh Media/dragon.obj
+start ParticleEmitter.exe -mesh Assets/dragon.obj

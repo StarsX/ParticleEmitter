@@ -58,21 +58,21 @@ bool Emitter::Init(CommandList* pCommandList, uint32_t numParticles,
 	m_counter = RawBuffer::MakeShared();
 	N_RETURN(m_counter->Create(m_device.get(), sizeof(uint32_t),
 		ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::DENY_SHADER_RESOURCE,
-		MemoryType::DEFAULT, 0, nullptr, 1, nullptr, L"Counter"), false);
+		MemoryType::DEFAULT, 0, nullptr, 1, nullptr, MemoryFlag::NONE, L"Counter"), false);
 
 	m_emitterBuffer = StructuredBuffer::MakeUnique();
 	m_emitterBuffer->SetCounter(m_counter);
 	N_RETURN(m_emitterBuffer->Create(m_device.get(), 1 << 24, sizeof(EmitterInfo),
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1,
-		nullptr, 1, nullptr, L"EmitterBuffer"), false);
+		nullptr, 1, nullptr, MemoryFlag::NONE, L"EmitterBuffer"), false);
 
 	uint8_t particleBufferIdx = 0;
 	for (auto& particleBuffer : m_particleBuffers)
 	{
 		particleBuffer = StructuredBuffer::MakeUnique();
 		N_RETURN(particleBuffer->Create(m_device.get(), numParticles, sizeof(ParticleInfo),
-			ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1, nullptr, 1,
-			nullptr, (L"ParticleBuffer" + to_wstring(particleBufferIdx++)).c_str()), false);
+			ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1, nullptr, 1, nullptr,
+			MemoryFlag::NONE, (L"ParticleBuffer" + to_wstring(particleBufferIdx++)).c_str()), false);
 	}
 
 	vector<ParticleInfo> particles(numParticles);
@@ -89,7 +89,7 @@ bool Emitter::Init(CommandList* pCommandList, uint32_t numParticles,
 	// Create constant buffer
 	m_cbPerObject = ConstantBuffer::MakeUnique();
 	N_RETURN(m_cbPerObject->Create(m_device.get(), sizeof(CBPerObject[FrameCount]), FrameCount,
-		nullptr, MemoryType::UPLOAD, L"CBParticle"), false);
+		nullptr, MemoryType::UPLOAD, MemoryFlag::NONE, L"CBParticle"), false);
 
 	N_RETURN(createPipelineLayouts(), false);
 	N_RETURN(createPipelines(pInputLayout, rtFormat, dsFormat), false);
@@ -113,7 +113,7 @@ bool Emitter::SetEmitterCount(const CommandList* pCommandList, RawBuffer* pCount
 		auto numBarriers = m_emitterBuffer->SetBarrier(barriers, ResourceState::COPY_SOURCE);
 
 		N_RETURN(emitterScratch->Create(m_device.get(), m_numEmitters, sizeof(EmitterInfo), ResourceFlag::NONE,
-			MemoryType::DEFAULT, 1, nullptr, 0, nullptr, L"EmitterBuffer"), false);
+			MemoryType::DEFAULT, 1, nullptr, 0, nullptr, MemoryFlag::NONE, L"EmitterBuffer"), false);
 
 		// Set barriers
 		numBarriers = emitterScratch->SetBarrier(barriers, ResourceState::COPY_DEST, numBarriers);

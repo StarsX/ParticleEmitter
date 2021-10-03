@@ -33,37 +33,37 @@ bool FluidFH::Init(CommandList* pCommandList, uint32_t numParticles,
 	m_grid = Texture3D::MakeUnique();
 	N_RETURN(m_grid->Create(m_device.get(), GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
 		Format::R16G16B16A16_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS |
-		ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS, 1, MemoryType::DEFAULT,
+		ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS, 1, MemoryFlag::NONE,
 		L"VelocityDensity"), false);
 
 	m_density = Texture3D::MakeUnique();
 	N_RETURN(m_density->Create(m_device.get(), GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
 		Format::R16_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS |
-		ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS, 1, MemoryType::DEFAULT,
+		ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS, 1, MemoryFlag::NONE,
 		L"Density"), false);
 
 	m_densityU = Texture3D::MakeUnique();
 	N_RETURN(m_densityU->Create(m_device.get(), GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
-		Format::R32_UINT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1,
-		MemoryType::DEFAULT, L"EncodedDensity"), false);
+		Format::R32_UINT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, MemoryFlag::NONE,
+		L"EncodedDensity"), false);
 
 	for (auto& velocity : m_velocity) velocity = Texture3D::MakeUnique();
 	{
 		N_RETURN(m_velocity[0]->Create(m_device.get(), GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
-			Format::R32_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, MemoryType::DEFAULT,
+			Format::R32_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, MemoryFlag::NONE,
 			L"VelocityX"), false);
 		N_RETURN(m_velocity[1]->Create(m_device.get(), GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
-			Format::R32_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, MemoryType::DEFAULT,
+			Format::R32_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, MemoryFlag::NONE,
 			L"VelocityY"), false);
 		N_RETURN(m_velocity[2]->Create(m_device.get(), GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
-			Format::R32_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, MemoryType::DEFAULT,
+			Format::R32_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, MemoryFlag::NONE,
 			L"VelocityZ"), false);
 	}
 
 	// Create constant buffer
 	m_cbSimulation = ConstantBuffer::MakeUnique();
 	N_RETURN(m_cbSimulation->Create(m_device.get(), sizeof(CBSimulation), 1,
-		nullptr, MemoryType::DEFAULT, L"CbSimultionFHF"), false);
+		nullptr, MemoryType::DEFAULT, MemoryFlag::NONE, L"CbSimultionFHF"), false);
 	uploaders.emplace_back(Resource::MakeUnique());
 	CBSimulation cbSimulation;
 	{

@@ -35,7 +35,8 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 	m_counter = TypedBuffer::MakeUnique();
 	N_RETURN(m_counter->Create(m_device.get(), 1, sizeof(uint32_t), Format::R32_FLOAT,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::DENY_SHADER_RESOURCE,
-		MemoryType::DEFAULT, 0, nullptr, 1, nullptr, L"GlobalBarrierCounter"), false);
+		MemoryType::DEFAULT, 0, nullptr, 1, nullptr, MemoryFlag::NONE,
+		L"GlobalBarrierCounter"), false);
 
 	if (pBuffer)
 	{
@@ -71,12 +72,13 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 		m_testBuffer = TypedBuffer::MakeUnique();
 		N_RETURN(m_testBuffer->Create(m_device.get(), maxElementCount, stride, format,
 			ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::DENY_SHADER_RESOURCE,
-			MemoryType::DEFAULT, 0, nullptr, 1, nullptr, L"PrefixSumTestBuffer"), false);
+			MemoryType::DEFAULT, 0, nullptr, 1, nullptr, MemoryFlag::NONE,
+			L"PrefixSumTestBuffer"), false);
 
 		m_readBack = TypedBuffer::MakeUnique();
 		N_RETURN(m_readBack->Create(m_device.get(), maxElementCount, stride, format,
 			ResourceFlag::DENY_SHADER_RESOURCE, MemoryType::READBACK, 0,
-			nullptr, 0, nullptr, L"ReadBackBuffer"), false);
+			nullptr, 0, nullptr, MemoryFlag::NONE, L"ReadBackBuffer"), false);
 
 		m_pBuffer = m_testBuffer.get();
 

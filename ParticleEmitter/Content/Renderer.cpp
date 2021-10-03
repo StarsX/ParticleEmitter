@@ -45,7 +45,7 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width, uint32_t height,
 	// Create constant buffer
 	m_cbBasePass = ConstantBuffer::MakeUnique();
 	N_RETURN(m_cbBasePass->Create(m_device.get(), sizeof(CBBasePass[FrameCount]), FrameCount,
-		nullptr, MemoryType::UPLOAD, L"CBBasePass"), false);
+		nullptr, MemoryType::UPLOAD, MemoryFlag::NONE, L"CBBasePass"), false);
 
 	// Create pipelines
 	N_RETURN(createInputLayout(), false);
@@ -142,7 +142,7 @@ bool Renderer::createVB(CommandList* pCommandList, uint32_t numVert, uint32_t st
 {
 	m_vertexBuffer = VertexBuffer::MakeUnique();
 	N_RETURN(m_vertexBuffer->Create(m_device.get(), numVert, stride, ResourceFlag::NONE,
-		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr, L"MeshVB"), false);
+		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr, MemoryFlag::NONE, L"MeshVB"), false);
 	uploaders.emplace_back(Resource::MakeUnique());
 
 	return m_vertexBuffer->Upload(pCommandList, uploaders.back().get(), pData,
@@ -158,7 +158,7 @@ bool Renderer::createIB(CommandList* pCommandList, uint32_t numIndices,
 	const uint32_t byteWidth = sizeof(uint32_t) * numIndices;
 	m_indexBuffer = IndexBuffer::MakeUnique();
 	N_RETURN(m_indexBuffer->Create(m_device.get(), byteWidth, Format::R32_UINT, ResourceFlag::NONE,
-		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr, L"MeshIB"), false);
+		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr, MemoryFlag::NONE, L"MeshIB"), false);
 	uploaders.emplace_back(Resource::MakeUnique());
 
 	return m_indexBuffer->Upload(pCommandList, uploaders.back().get(), pData,

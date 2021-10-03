@@ -34,15 +34,16 @@ ParticleEmitter::ParticleEmitter(uint32_t width, uint32_t height, std::wstring n
 	m_isPaused(false),
 	m_simulationMethod(SPH_SIMULATION),
 	m_tracking(false),
-	m_meshFileName("Media/bunny.obj"),
+	m_meshFileName("Assets/bunny.obj"),
 	m_meshPosScale(0.0f, 0.0f, 0.0f, 1.0f)
 {
 #if defined (_DEBUG)
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	AllocConsole();
 	FILE* stream;
-	freopen_s(&stream, "CONOUT$", "w+t", stdout);
 	freopen_s(&stream, "CONIN$", "r+t", stdin);
+	freopen_s(&stream, "CONOUT$", "w+t", stdout);
+	freopen_s(&stream, "CONOUT$", "w+t", stderr);
 #endif
 }
 
@@ -124,7 +125,7 @@ void ParticleEmitter::LoadPipeline()
 
 	// Describe and create the swap chain.
 	m_swapChain = SwapChain::MakeUnique();
-	N_RETURN(m_swapChain->Create(factory.Get(), Win32Application::GetHwnd(), m_commandQueue.get(),
+	N_RETURN(m_swapChain->Create(factory.get(), Win32Application::GetHwnd(), m_commandQueue.get(),
 		FrameCount, m_width, m_height, Format::B8G8R8A8_UNORM), ThrowIfFailed(E_FAIL));
 
 	// This sample does not support fullscreen transitions.
@@ -149,7 +150,8 @@ void ParticleEmitter::LoadPipeline()
 	// Create output views
 	m_depth = DepthStencil::MakeUnique();
 	m_depth->Create(m_device.get(), m_width, m_height, Format::D24_UNORM_S8_UINT,
-		ResourceFlag::DENY_SHADER_RESOURCE, 1, 1, 1, 1.0f, 0, false, L"Depth");
+		ResourceFlag::DENY_SHADER_RESOURCE, 1, 1, 1, 1.0f, 0, false,
+		MemoryFlag::NONE, L"Depth");
 }
 
 // Load the sample assets.

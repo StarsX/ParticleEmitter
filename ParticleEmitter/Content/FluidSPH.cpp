@@ -36,27 +36,27 @@ bool FluidSPH::Init(CommandList* pCommandList, uint32_t numParticles,
 	m_gridBuffer = TypedBuffer::MakeUnique();
 	N_RETURN(m_gridBuffer->Create(m_device.get(), g_gridBufferSize,
 		sizeof(uint32_t), Format::R32_UINT, ResourceFlag::ALLOW_UNORDERED_ACCESS,
-		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, L"GridBuffer"), false);
+		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, MemoryFlag::NONE, L"GridBuffer"), false);
 
 	m_offsetBuffer = TypedBuffer::MakeUnique();
 	N_RETURN(m_offsetBuffer->Create(m_device.get(), numParticles, sizeof(uint32_t),
 		Format::R32_UINT, ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
-		1, nullptr, 1, nullptr, L"OffsetBuffer"), false);
+		1, nullptr, 1, nullptr, MemoryFlag::NONE, L"OffsetBuffer"), false);
 
 	m_densityBuffer = TypedBuffer::MakeUnique();
 	N_RETURN(m_densityBuffer->Create(m_device.get(), numParticles, sizeof(uint16_t),
 		Format::R16_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
-		1, nullptr, 1, nullptr, L"DensityBuffer"), false);
+		1, nullptr, 1, nullptr, MemoryFlag::NONE, L"DensityBuffer"), false);
 
 	m_forceBuffer = TypedBuffer::MakeUnique();
 	N_RETURN(m_forceBuffer->Create(m_device.get(), numParticles, sizeof(uint16_t[4]),
 		Format::R16G16B16A16_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
-		1, nullptr, 1, nullptr, L"ForceBuffer"), false);
+		1, nullptr, 1, nullptr, MemoryFlag::NONE, L"ForceBuffer"), false);
 
 	// Create constant buffer
 	m_cbSimulation = ConstantBuffer::MakeUnique();
 	N_RETURN(m_cbSimulation->Create(m_device.get(), sizeof(CBSimulation), 1,
-		nullptr, MemoryType::DEFAULT, L"CBSimulationSPH"), false);
+		nullptr, MemoryType::DEFAULT, MemoryFlag::NONE, L"CBSimulationSPH"), false);
 	uploaders.emplace_back(Resource::MakeUnique());
 	CBSimulation cbSimulation;
 	{
