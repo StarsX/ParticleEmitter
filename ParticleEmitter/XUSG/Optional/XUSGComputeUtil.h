@@ -21,7 +21,7 @@ namespace XUSG
 			Format format = Format::R32_UINT, uint32_t maxElementCount = 4096);
 
 		void SetDevice(const Device::sptr& device);
-		void PrefixSum(const CommandList* pCommandList, uint32_t numElements = UINT32_MAX);
+		void PrefixSum(CommandList* pCommandList, uint32_t numElements = UINT32_MAX);
 		void VerifyPrefixSum(uint32_t numElements = UINT32_MAX);
 
 	protected:

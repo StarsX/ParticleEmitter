@@ -20,7 +20,7 @@ public:
 		const XUSG::StructuredBuffer::uptr* pParticleBuffers);
 
 	void UpdateFrame();
-	void Simulate(const XUSG::CommandList* pCommandList);
+	void Simulate(XUSG::CommandList* pCommandList);
 
 	const XUSG::DescriptorTable& GetDescriptorTable() const;
 
@@ -74,9 +74,9 @@ protected:
 	bool createPipelines();
 	bool createDescriptorTables();
 
-	void rearrange(const XUSG::CommandList* pCommandList);
-	void density(const XUSG::CommandList* pCommandList);
-	void force(const XUSG::CommandList* pCommandList);
+	void rearrange(XUSG::CommandList* pCommandList);
+	void density(XUSG::CommandList* pCommandList);
+	void force(XUSG::CommandList* pCommandList);
 
 	XUSG::Device::sptr m_device;
 

@@ -98,7 +98,7 @@ bool Emitter::Init(CommandList* pCommandList, uint32_t numParticles,
 	return true;
 }
 
-bool Emitter::SetEmitterCount(const CommandList* pCommandList, RawBuffer* pCounter,
+bool Emitter::SetEmitterCount(CommandList* pCommandList, RawBuffer* pCounter,
 	XUSG::StructuredBuffer::uptr& emitterScratch)
 {
 	m_numEmitters = *reinterpret_cast<const uint32_t*>(pCounter->Map(nullptr));
@@ -162,7 +162,7 @@ void Emitter::UpdateFrame(uint8_t frameIndex, double time, float timeStep,
 	m_world = pCbData->World;
 }
 
-void Emitter::Distribute(const CommandList* pCommandList, const RawBuffer* pCounter,
+void Emitter::Distribute(CommandList* pCommandList, const RawBuffer* pCounter,
 	const VertexBuffer* pVB, const IndexBuffer* pIB, uint32_t numIndices,
 	float density, float scale)
 {
@@ -244,7 +244,7 @@ void Emitter::Render(const CommandList* pCommandList, uint8_t frameIndex,
 	pCommandList->Draw(m_numParticles, 1, 0, 0);
 }
 
-void Emitter::RenderSPH(const CommandList* pCommandList, uint8_t frameIndex, const Descriptor& rtv,
+void Emitter::RenderSPH(CommandList* pCommandList, uint8_t frameIndex, const Descriptor& rtv,
 	const Descriptor* pDsv, const DescriptorTable& fluidDescriptorTable)
 {
 	const DescriptorPool descriptorPools[] =

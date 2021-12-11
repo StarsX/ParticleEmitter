@@ -95,7 +95,7 @@ void FluidFH::UpdateFrame()
 	m_grid->SetBarrier(&barrier, ResourceState::NON_PIXEL_SHADER_RESOURCE);
 }
 
-void FluidFH::Simulate(const CommandList* pCommandList, bool hasViscosity)
+void FluidFH::Simulate(CommandList* pCommandList, bool hasViscosity)
 {
 	ResourceBarrier barriers[5];
 	auto numBarriers = m_grid->SetBarrier(barriers, ResourceState::UNORDERED_ACCESS);

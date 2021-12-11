@@ -95,7 +95,7 @@ void FluidSPH::UpdateFrame()
 	m_forceBuffer->SetBarrier(&barrier, ResourceState::NON_PIXEL_SHADER_RESOURCE);
 }
 
-void FluidSPH::Simulate(const CommandList* pCommandList)
+void FluidSPH::Simulate(CommandList* pCommandList)
 {
 	ResourceBarrier barrier;
 	auto numBarriers = m_gridBuffer->SetBarrier(&barrier, ResourceState::UNORDERED_ACCESS);
@@ -259,7 +259,7 @@ bool FluidSPH::createDescriptorTables()
 	return true;
 }
 
-void FluidSPH::rearrange(const CommandList* pCommandList)
+void FluidSPH::rearrange(CommandList* pCommandList)
 {
 	// Set barriers
 	ResourceBarrier barriers[4];
@@ -280,7 +280,7 @@ void FluidSPH::rearrange(const CommandList* pCommandList)
 	pCommandList->Dispatch(DIV_UP(m_numParticles, 64), 1, 1);
 }
 
-void FluidSPH::density(const CommandList* pCommandList)
+void FluidSPH::density(CommandList* pCommandList)
 {
 	// Set barriers
 	ResourceBarrier barriers[2];
@@ -300,7 +300,7 @@ void FluidSPH::density(const CommandList* pCommandList)
 	pCommandList->Dispatch(DIV_UP(m_numParticles, 64), 1, 1);
 }
 
-void FluidSPH::force(const CommandList* pCommandList)
+void FluidSPH::force(CommandList* pCommandList)
 {
 	// Set barriers
 	ResourceBarrier barriers[2];

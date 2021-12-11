@@ -19,7 +19,7 @@ public:
 		std::vector<XUSG::Resource::uptr>& uploaders, XUSG::Format rtFormat);
 
 	void UpdateFrame();
-	void Simulate(const XUSG::CommandList* pCommandList, bool hasViscosity = true);
+	void Simulate(XUSG::CommandList* pCommandList, bool hasViscosity = true);
 
 	const XUSG::DescriptorTable& GetDescriptorTable(bool hasViscosity = true) const;
 

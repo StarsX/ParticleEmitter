@@ -200,7 +200,7 @@ void ComputeUtil::SetDevice(const Device::sptr& device)
 	m_pipelineLayoutCache->SetDevice(device.get());
 }
 
-void ComputeUtil::PrefixSum(const CommandList* pCommandList, uint32_t numElements)
+void ComputeUtil::PrefixSum(CommandList* pCommandList, uint32_t numElements)
 {
 	numElements = numElements != UINT32_MAX ? numElements : m_maxElementCount;
 	if (m_testBuffer && numElements > m_maxElementCount)

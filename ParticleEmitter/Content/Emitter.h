@@ -17,19 +17,19 @@ public:
 		const XUSG::DescriptorTableCache::sptr& descriptorTableCache,
 		std::vector<XUSG::Resource::uptr> &uploaders, const XUSG::InputLayout* pInputLayout,
 		XUSG::Format rtFormat, XUSG::Format dsFormat);
-	bool SetEmitterCount(const XUSG::CommandList* pCommandList, XUSG::RawBuffer* pCounter,
+	bool SetEmitterCount(XUSG::CommandList* pCommandList, XUSG::RawBuffer* pCounter,
 		XUSG::StructuredBuffer::uptr& emitterScratch);
 
 	void UpdateFrame(uint8_t frameIndex, double time, float timeStep,
 		const DirectX::XMFLOAT3X4& world, const DirectX::CXMMATRIX viewProj);
-	void Distribute(const XUSG::CommandList* pCommandList, const XUSG::RawBuffer* pCounter,
+	void Distribute(XUSG::CommandList* pCommandList, const XUSG::RawBuffer* pCounter,
 		const XUSG::VertexBuffer* pVB, const XUSG::IndexBuffer* pIB, uint32_t numIndices,
 		float density, float scale);
 	void EmitParticle(const XUSG::CommandList* pCommandList, uint8_t frameIndex,
 		uint32_t numParticles, const XUSG::DescriptorTable& uavTable);
 	void Render(const XUSG::CommandList* pCommandList, uint8_t frameIndex,
 		const XUSG::Descriptor& rtv, const XUSG::Descriptor* pDsv);
-	void RenderSPH(const XUSG::CommandList* pCommandList, uint8_t frameIndex, const XUSG::Descriptor& rtv,
+	void RenderSPH(XUSG::CommandList* pCommandList, uint8_t frameIndex, const XUSG::Descriptor& rtv,
 		const XUSG::Descriptor* pDsv, const XUSG::DescriptorTable& fluidDescriptorTable);
 	void RenderFHF(const XUSG::CommandList* pCommandList, uint8_t frameIndex, const XUSG::Descriptor& rtv,
 		const XUSG::Descriptor* pDsv, const XUSG::DescriptorTable& fluidDescriptorTable);
