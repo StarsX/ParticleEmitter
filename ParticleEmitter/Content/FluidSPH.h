@@ -11,7 +11,7 @@
 class FluidSPH
 {
 public:
-	FluidSPH(const XUSG::Device::sptr& device);
+	FluidSPH();
 	virtual ~FluidSPH();
 
 	bool Init(XUSG::CommandList* pCommandList, uint32_t numParticles,
@@ -77,8 +77,6 @@ protected:
 	void rearrange(XUSG::CommandList* pCommandList);
 	void density(XUSG::CommandList* pCommandList);
 	void force(XUSG::CommandList* pCommandList);
-
-	XUSG::Device::sptr m_device;
 
 	XUSG::ShaderPool::uptr				m_shaderPool;
 	XUSG::Compute::PipelineCache::uptr	m_computePipelineCache;

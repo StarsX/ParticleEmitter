@@ -17,13 +17,11 @@ struct CBBasePass
 	DirectX::XMFLOAT3X4	World;
 };
 
-Renderer::Renderer(const Device::sptr& device) :
-	m_device(device),
+Renderer::Renderer() :
 	m_frameParity(0)
 {
 	m_shaderPool = ShaderPool::MakeUnique();
-	m_graphicsPipelineCache = Graphics::PipelineCache::MakeUnique(device.get());
-	m_pipelineLayoutCache = PipelineLayoutCache::MakeUnique(device.get());
+	
 }
 
 Renderer::~Renderer()
@@ -34,6 +32,10 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width, uint32_t height,
 	vector<Resource::uptr>& uploaders, const char* fileName,
 	Format rtFormat, Format dsFormat)
 {
+	const auto pDevice = pCommandList->GetDevice();
+	m_graphicsPipelineCache = Graphics::PipelineCache::MakeUnique(pDevice);
+	m_pipelineLayoutCache = PipelineLayoutCache::MakeUnique(pDevice);
+
 	m_viewport = XMUINT2(width, height);
 
 	// Load inputs
@@ -44,7 +46,7 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width, uint32_t height,
 
 	// Create constant buffer
 	m_cbBasePass = ConstantBuffer::MakeUnique();
-	N_RETURN(m_cbBasePass->Create(m_device.get(), sizeof(CBBasePass[FrameCount]), FrameCount,
+	N_RETURN(m_cbBasePass->Create(pDevice, sizeof(CBBasePass[FrameCount]), FrameCount,
 		nullptr, MemoryType::UPLOAD, MemoryFlag::NONE, L"CBBasePass"), false);
 
 	// Create pipelines
@@ -141,7 +143,7 @@ bool Renderer::createVB(CommandList* pCommandList, uint32_t numVert, uint32_t st
 	const uint8_t* pData, vector<Resource::uptr>& uploaders)
 {
 	m_vertexBuffer = VertexBuffer::MakeUnique();
-	N_RETURN(m_vertexBuffer->Create(m_device.get(), numVert, stride, ResourceFlag::NONE,
+	N_RETURN(m_vertexBuffer->Create(pCommandList->GetDevice(), numVert, stride, ResourceFlag::NONE,
 		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr, MemoryFlag::NONE, L"MeshVB"), false);
 	uploaders.emplace_back(Resource::MakeUnique());
 
@@ -157,7 +159,7 @@ bool Renderer::createIB(CommandList* pCommandList, uint32_t numIndices,
 
 	const uint32_t byteWidth = sizeof(uint32_t) * numIndices;
 	m_indexBuffer = IndexBuffer::MakeUnique();
-	N_RETURN(m_indexBuffer->Create(m_device.get(), byteWidth, Format::R32_UINT, ResourceFlag::NONE,
+	N_RETURN(m_indexBuffer->Create(pCommandList->GetDevice(), byteWidth, Format::R32_UINT, ResourceFlag::NONE,
 		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr, MemoryFlag::NONE, L"MeshIB"), false);
 	uploaders.emplace_back(Resource::MakeUnique());
 

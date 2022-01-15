@@ -11,7 +11,7 @@
 class FluidFH
 {
 public:
-	FluidFH(const XUSG::Device::sptr& device);
+	FluidFH();
 	virtual ~FluidFH();
 
 	bool Init(XUSG::CommandList* pCommandList, uint32_t numParticles,
@@ -56,15 +56,11 @@ protected:
 	bool createPipelines(XUSG::Format rtFormat);
 	bool createDescriptorTables();
 
-	XUSG::Device::sptr m_device;
-
 	XUSG::ShaderPool::uptr				m_shaderPool;
 	XUSG::Graphics::PipelineCache::uptr	m_graphicsPipelineCache;
 	XUSG::Compute::PipelineCache::uptr	m_computePipelineCache;
 	XUSG::PipelineLayoutCache::uptr		m_pipelineLayoutCache;
 	XUSG::DescriptorTableCache::sptr	m_descriptorTableCache;
-
-	XUSG::ComputeUtil		m_prefixSumUtil;
 
 	XUSG::PipelineLayout	m_pipelineLayouts[NUM_PIPELINE];
 	XUSG::Pipeline			m_pipelines[NUM_PIPELINE];

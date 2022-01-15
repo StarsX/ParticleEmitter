@@ -10,7 +10,7 @@
 class Emitter
 {
 public:
-	Emitter(const XUSG::Device::sptr&device);
+	Emitter();
 	virtual ~Emitter();
 
 	bool Init(XUSG::CommandList* pCommandList, uint32_t numParticles,
@@ -83,8 +83,6 @@ protected:
 
 	void distribute(const XUSG::CommandList* pCommandList, const XUSG::VertexBuffer* pVB,
 		const XUSG::IndexBuffer* pIB, uint32_t numIndices, float density, float scale);
-	
-	XUSG::Device::sptr m_device;
 
 	XUSG::ShaderPool::uptr				m_shaderPool;
 	XUSG::Graphics::PipelineCache::uptr	m_graphicsPipelineCache;

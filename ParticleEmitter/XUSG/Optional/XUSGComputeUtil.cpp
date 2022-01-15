@@ -10,10 +10,10 @@ ComputeUtil::ComputeUtil()
 	m_pipelineLayoutCache = PipelineLayoutCache::MakeUnique();
 }
 
-ComputeUtil::ComputeUtil(const Device::sptr& device) :
+ComputeUtil::ComputeUtil(const Device* pDevice) :
 	ComputeUtil()
 {
-	SetDevice(device);
+	SetDevice(pDevice);
 }
 
 ComputeUtil::~ComputeUtil()
@@ -24,6 +24,8 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 	const DescriptorTableCache::sptr& descriptorTableCache, TypedBuffer* pBuffer,
 	vector<Resource::uptr>* pUploaders, Format format, uint32_t maxElementCount)
 {
+	const auto pDevice = pCommandList->GetDevice();
+
 	if (maxElementCount > 1024 * 1024)
 		assert(!"Error: maxElementCount should be no more than 1048576!");
 	m_safeMode = safeMode;
@@ -33,7 +35,7 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 
 	// Create resources
 	m_counter = TypedBuffer::MakeUnique();
-	N_RETURN(m_counter->Create(m_device.get(), 1, sizeof(uint32_t), Format::R32_FLOAT,
+	N_RETURN(m_counter->Create(pDevice, 1, sizeof(uint32_t), Format::R32_FLOAT,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::DENY_SHADER_RESOURCE,
 		MemoryType::DEFAULT, 0, nullptr, 1, nullptr, MemoryFlag::NONE,
 		L"GlobalBarrierCounter"), false);
@@ -70,13 +72,13 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 
 		// Create test buffers
 		m_testBuffer = TypedBuffer::MakeUnique();
-		N_RETURN(m_testBuffer->Create(m_device.get(), maxElementCount, stride, format,
+		N_RETURN(m_testBuffer->Create(pDevice, maxElementCount, stride, format,
 			ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::DENY_SHADER_RESOURCE,
 			MemoryType::DEFAULT, 0, nullptr, 1, nullptr, MemoryFlag::NONE,
 			L"PrefixSumTestBuffer"), false);
 
 		m_readBack = TypedBuffer::MakeUnique();
-		N_RETURN(m_readBack->Create(m_device.get(), maxElementCount, stride, format,
+		N_RETURN(m_readBack->Create(pDevice, maxElementCount, stride, format,
 			ResourceFlag::DENY_SHADER_RESOURCE, MemoryType::READBACK, 0,
 			nullptr, 0, nullptr, MemoryFlag::NONE, L"ReadBackBuffer"), false);
 
@@ -193,11 +195,10 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 	return true;
 }
 
-void ComputeUtil::SetDevice(const Device::sptr& device)
+void ComputeUtil::SetDevice(const Device* pDevice)
 {
-	m_device = device;
-	m_computePipelineCache->SetDevice(device.get());
-	m_pipelineLayoutCache->SetDevice(device.get());
+	m_computePipelineCache->SetDevice(pDevice);
+	m_pipelineLayoutCache->SetDevice(pDevice);
 }
 
 void ComputeUtil::PrefixSum(CommandList* pCommandList, uint32_t numElements)

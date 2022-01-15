@@ -12,7 +12,7 @@ namespace XUSG
 	{
 	public:
 		ComputeUtil();
-		ComputeUtil(const Device::sptr& device);
+		ComputeUtil(const Device* pDevice);
 		virtual ~ComputeUtil();
 
 		bool SetPrefixSum(CommandList* pCommandList, bool safeMode,
@@ -20,7 +20,7 @@ namespace XUSG
 			TypedBuffer* pBuffer, std::vector<Resource::uptr>* pUploaders = nullptr,
 			Format format = Format::R32_UINT, uint32_t maxElementCount = 4096);
 
-		void SetDevice(const Device::sptr& device);
+		void SetDevice(const Device* pDevice);
 		void PrefixSum(CommandList* pCommandList, uint32_t numElements = UINT32_MAX);
 		void VerifyPrefixSum(uint32_t numElements = UINT32_MAX);
 
@@ -54,8 +54,6 @@ namespace XUSG
 
 			NUM_UAV_TABLE
 		};
-
-		Device::sptr m_device;
 
 		Format					m_format;
 

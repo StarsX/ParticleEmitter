@@ -32,14 +32,10 @@ struct CBPerObject
 	DirectX::XMFLOAT4X4 ViewProj;
 };
 
-Emitter::Emitter(const Device::sptr& device) :
-	m_device(device),
+Emitter::Emitter() :
 	m_srvTable(nullptr)
 {
 	m_shaderPool = ShaderPool::MakeUnique();
-	m_graphicsPipelineCache = Graphics::PipelineCache::MakeUnique(device.get());
-	m_computePipelineCache = Compute::PipelineCache::MakeUnique(device.get());
-	m_pipelineLayoutCache = PipelineLayoutCache::MakeUnique(device.get());
 }
 
 Emitter::~Emitter()
@@ -51,18 +47,22 @@ bool Emitter::Init(CommandList* pCommandList, uint32_t numParticles,
 	vector<Resource::uptr>& uploaders, const InputLayout* pInputLayout,
 	Format rtFormat, Format dsFormat)
 {
-	m_numParticles = numParticles;
+	const auto pDevice = pCommandList->GetDevice();
+	m_graphicsPipelineCache = Graphics::PipelineCache::MakeUnique(pDevice);
+	m_computePipelineCache = Compute::PipelineCache::MakeUnique(pDevice);
+	m_pipelineLayoutCache = PipelineLayoutCache::MakeUnique(pDevice);
 	m_descriptorTableCache = descriptorTableCache;
+	m_numParticles = numParticles;
 
 	// Create resources and pipelines
 	m_counter = RawBuffer::MakeShared();
-	N_RETURN(m_counter->Create(m_device.get(), sizeof(uint32_t),
+	N_RETURN(m_counter->Create(pDevice, sizeof(uint32_t),
 		ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::DENY_SHADER_RESOURCE,
 		MemoryType::DEFAULT, 0, nullptr, 1, nullptr, MemoryFlag::NONE, L"Counter"), false);
 
 	m_emitterBuffer = StructuredBuffer::MakeUnique();
 	m_emitterBuffer->SetCounter(m_counter);
-	N_RETURN(m_emitterBuffer->Create(m_device.get(), 1 << 24, sizeof(EmitterInfo),
+	N_RETURN(m_emitterBuffer->Create(pDevice, 1 << 24, sizeof(EmitterInfo),
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1,
 		nullptr, 1, nullptr, MemoryFlag::NONE, L"EmitterBuffer"), false);
 
@@ -70,7 +70,7 @@ bool Emitter::Init(CommandList* pCommandList, uint32_t numParticles,
 	for (auto& particleBuffer : m_particleBuffers)
 	{
 		particleBuffer = StructuredBuffer::MakeUnique();
-		N_RETURN(particleBuffer->Create(m_device.get(), numParticles, sizeof(ParticleInfo),
+		N_RETURN(particleBuffer->Create(pDevice, numParticles, sizeof(ParticleInfo),
 			ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1, nullptr, 1, nullptr,
 			MemoryFlag::NONE, (L"ParticleBuffer" + to_wstring(particleBufferIdx++)).c_str()), false);
 	}
@@ -88,7 +88,7 @@ bool Emitter::Init(CommandList* pCommandList, uint32_t numParticles,
 
 	// Create constant buffer
 	m_cbPerObject = ConstantBuffer::MakeUnique();
-	N_RETURN(m_cbPerObject->Create(m_device.get(), sizeof(CBPerObject[FrameCount]), FrameCount,
+	N_RETURN(m_cbPerObject->Create(pDevice, sizeof(CBPerObject[FrameCount]), FrameCount,
 		nullptr, MemoryType::UPLOAD, MemoryFlag::NONE, L"CBParticle"), false);
 
 	N_RETURN(createPipelineLayouts(), false);
@@ -112,7 +112,7 @@ bool Emitter::SetEmitterCount(CommandList* pCommandList, RawBuffer* pCounter,
 		ResourceBarrier barriers[2];
 		auto numBarriers = m_emitterBuffer->SetBarrier(barriers, ResourceState::COPY_SOURCE);
 
-		N_RETURN(emitterScratch->Create(m_device.get(), m_numEmitters, sizeof(EmitterInfo), ResourceFlag::NONE,
+		N_RETURN(emitterScratch->Create(pCommandList->GetDevice(), m_numEmitters, sizeof(EmitterInfo), ResourceFlag::NONE,
 			MemoryType::DEFAULT, 1, nullptr, 0, nullptr, MemoryFlag::NONE, L"EmitterBuffer"), false);
 
 		// Set barriers

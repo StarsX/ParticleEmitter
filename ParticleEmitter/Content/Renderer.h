@@ -10,7 +10,7 @@
 class Renderer
 {
 public:
-	Renderer(const XUSG::Device::sptr& device);
+	Renderer();
 	virtual ~Renderer();
 
 	bool Init(XUSG::CommandList* pCommandList, uint32_t width, uint32_t height,
@@ -38,8 +38,6 @@ protected:
 	bool createInputLayout();
 	bool createPipelineLayouts();
 	bool createPipelines(XUSG::Format rtFormat, XUSG::Format dsFormat);
-
-	XUSG::Device::sptr m_device;
 
 	uint32_t	m_numIndices;
 	uint8_t		m_frameParity;
