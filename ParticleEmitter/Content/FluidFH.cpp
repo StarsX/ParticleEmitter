@@ -30,38 +30,38 @@ bool FluidFH::Init(CommandList* pCommandList, uint32_t numParticles,
 	
 	// Create resources
 	m_grid = Texture3D::MakeUnique();
-	N_RETURN(m_grid->Create(pDevice, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
+	XUSG_N_RETURN(m_grid->Create(pDevice, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
 		Format::R16G16B16A16_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS |
 		ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS, 1, MemoryFlag::NONE,
 		L"VelocityDensity"), false);
 
 	m_density = Texture3D::MakeUnique();
-	N_RETURN(m_density->Create(pDevice, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
+	XUSG_N_RETURN(m_density->Create(pDevice, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
 		Format::R16_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS |
 		ResourceFlag::ALLOW_SIMULTANEOUS_ACCESS, 1, MemoryFlag::NONE,
 		L"Density"), false);
 
 	m_densityU = Texture3D::MakeUnique();
-	N_RETURN(m_densityU->Create(pDevice, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
+	XUSG_N_RETURN(m_densityU->Create(pDevice, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
 		Format::R32_UINT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, MemoryFlag::NONE,
 		L"EncodedDensity"), false);
 
 	for (auto& velocity : m_velocity) velocity = Texture3D::MakeUnique();
 	{
-		N_RETURN(m_velocity[0]->Create(pDevice, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
+		XUSG_N_RETURN(m_velocity[0]->Create(pDevice, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
 			Format::R32_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, MemoryFlag::NONE,
 			L"VelocityX"), false);
-		N_RETURN(m_velocity[1]->Create(pDevice, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
+		XUSG_N_RETURN(m_velocity[1]->Create(pDevice, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
 			Format::R32_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, MemoryFlag::NONE,
 			L"VelocityY"), false);
-		N_RETURN(m_velocity[2]->Create(pDevice, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
+		XUSG_N_RETURN(m_velocity[2]->Create(pDevice, GRID_SIZE_FHF, GRID_SIZE_FHF, GRID_SIZE_FHF,
 			Format::R32_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, MemoryFlag::NONE,
 			L"VelocityZ"), false);
 	}
 
 	// Create constant buffer
 	m_cbSimulation = ConstantBuffer::MakeUnique();
-	N_RETURN(m_cbSimulation->Create(pDevice, sizeof(CBSimulation), 1,
+	XUSG_N_RETURN(m_cbSimulation->Create(pDevice, sizeof(CBSimulation), 1,
 		nullptr, MemoryType::DEFAULT, MemoryFlag::NONE, L"CbSimultionFHF"), false);
 	uploaders.emplace_back(Resource::MakeUnique());
 	CBSimulation cbSimulation;
@@ -80,9 +80,9 @@ bool FluidFH::Init(CommandList* pCommandList, uint32_t numParticles,
 		&cbSimulation, sizeof(CBSimulation));
 
 	// Create pipelines
-	N_RETURN(createPipelineLayouts(), false);
-	N_RETURN(createPipelines(rtFormat), false);
-	N_RETURN(createDescriptorTables(), false);
+	XUSG_N_RETURN(createPipelineLayouts(), false);
+	XUSG_N_RETURN(createPipelines(rtFormat), false);
+	XUSG_N_RETURN(createDescriptorTables(), false);
 
 	return true;
 }
@@ -112,7 +112,7 @@ void FluidFH::Simulate(CommandList* pCommandList, bool hasViscosity)
 	pCommandList->SetComputeDescriptorTable(0, m_cbvUavSrvTables[hasViscosity ?
 		CBV_UAV_SRV_TABLE_TRANSFER_FHF : CBV_UAV_SRV_TABLE_TRANSFER_FHS]);
 
-	const auto numGroups = DIV_UP(GRID_SIZE_FHF, 4);
+	const auto numGroups = XUSG_DIV_UP(GRID_SIZE_FHF, 4);
 	pCommandList->Dispatch(numGroups, numGroups, numGroups);
 }
 
@@ -127,7 +127,7 @@ bool FluidFH::createPipelineLayouts()
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
 		pipelineLayout->SetRange(0, DescriptorType::UAV, 5, 0, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
-		X_RETURN(m_pipelineLayouts[TRANSFER_FHF], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
+		XUSG_X_RETURN(m_pipelineLayouts[TRANSFER_FHF], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
 			PipelineLayoutFlag::NONE, L"TransferFHFLayout"), false);
 	}
 
@@ -137,7 +137,7 @@ bool FluidFH::createPipelineLayouts()
 		pipelineLayout->SetRange(0, DescriptorType::UAV, 1, 0, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		pipelineLayout->SetRange(0, DescriptorType::SRV, 1, 0);
 		pipelineLayout->SetRange(1, DescriptorType::SAMPLER, 1, 0);
-		X_RETURN(m_pipelineLayouts[RESAMPLE], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
+		XUSG_X_RETURN(m_pipelineLayouts[RESAMPLE], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
 			PipelineLayoutFlag::NONE, L"ResamplingLayout"), false);
 	}
 
@@ -150,22 +150,22 @@ bool FluidFH::createPipelines(Format rtFormat)
 
 	// Transfer with viscosity
 	{
-		N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, csIndex, L"CSTransferFHF.cso"), false);
+		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, csIndex, L"CSTransferFHF.cso"), false);
 
 		const auto state = Compute::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[TRANSFER_FHF]);
 		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, csIndex++));
-		X_RETURN(m_pipelines[TRANSFER_FHF], state->GetPipeline(m_computePipelineCache.get(), L"TransferFHF"), false);
+		XUSG_X_RETURN(m_pipelines[TRANSFER_FHF], state->GetPipeline(m_computePipelineCache.get(), L"TransferFHF"), false);
 	}
 
 	// Resampling
 	{
-		N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, csIndex, L"CSResample.cso"), false);
+		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, csIndex, L"CSResample.cso"), false);
 
 		const auto state = Compute::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[RESAMPLE]);
 		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, csIndex++));
-		X_RETURN(m_pipelines[RESAMPLE], state->GetPipeline(m_computePipelineCache.get(), L"Resampling"), false);
+		XUSG_X_RETURN(m_pipelines[RESAMPLE], state->GetPipeline(m_computePipelineCache.get(), L"Resampling"), false);
 	}
 
 	return true;
@@ -182,7 +182,7 @@ bool FluidFH::createDescriptorTables()
 			m_grid->GetSRV()
 		};
 		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_PARTICLE_FHF], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_PARTICLE_FHF], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 	}
 
 	{
@@ -196,13 +196,13 @@ bool FluidFH::createDescriptorTables()
 			m_grid->GetUAV()
 		};
 		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_TRANSFER_FHF], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_TRANSFER_FHF], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 	}
 
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		descriptorTable->SetDescriptors(0, 1, &m_cbSimulation->GetCBV());
-		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_PARTICLE_FHS], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_PARTICLE_FHS], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 	}
 
 	{
@@ -213,7 +213,7 @@ bool FluidFH::createDescriptorTables()
 			m_density->GetUAV()
 		};
 		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_TRANSFER_FHS], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_cbvUavSrvTables[CBV_UAV_SRV_TABLE_TRANSFER_FHS], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 	}
 
 	// Create the sampler
@@ -221,7 +221,7 @@ bool FluidFH::createDescriptorTables()
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		const auto samplerAnisoWrap = SamplerPreset::LINEAR_CLAMP;
 		descriptorTable->SetSamplers(0, 1, &samplerAnisoWrap, m_descriptorTableCache.get());
-		X_RETURN(m_samplerTable, descriptorTable->GetSamplerTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_samplerTable, descriptorTable->GetSamplerTable(m_descriptorTableCache.get()), false);
 	}
 
 	return true;

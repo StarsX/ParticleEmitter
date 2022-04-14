@@ -35,28 +35,28 @@ bool FluidSPH::Init(CommandList* pCommandList, uint32_t numParticles,
 
 	// Create resources
 	m_gridBuffer = TypedBuffer::MakeUnique();
-	N_RETURN(m_gridBuffer->Create(pDevice, g_gridBufferSize,
+	XUSG_N_RETURN(m_gridBuffer->Create(pDevice, g_gridBufferSize,
 		sizeof(uint32_t), Format::R32_UINT, ResourceFlag::ALLOW_UNORDERED_ACCESS,
 		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, MemoryFlag::NONE, L"GridBuffer"), false);
 
 	m_offsetBuffer = TypedBuffer::MakeUnique();
-	N_RETURN(m_offsetBuffer->Create(pDevice, numParticles, sizeof(uint32_t),
+	XUSG_N_RETURN(m_offsetBuffer->Create(pDevice, numParticles, sizeof(uint32_t),
 		Format::R32_UINT, ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
 		1, nullptr, 1, nullptr, MemoryFlag::NONE, L"OffsetBuffer"), false);
 
 	m_densityBuffer = TypedBuffer::MakeUnique();
-	N_RETURN(m_densityBuffer->Create(pDevice, numParticles, sizeof(uint16_t),
+	XUSG_N_RETURN(m_densityBuffer->Create(pDevice, numParticles, sizeof(uint16_t),
 		Format::R16_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
 		1, nullptr, 1, nullptr, MemoryFlag::NONE, L"DensityBuffer"), false);
 
 	m_forceBuffer = TypedBuffer::MakeUnique();
-	N_RETURN(m_forceBuffer->Create(pDevice, numParticles, sizeof(uint16_t[4]),
+	XUSG_N_RETURN(m_forceBuffer->Create(pDevice, numParticles, sizeof(uint16_t[4]),
 		Format::R16G16B16A16_FLOAT, ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT,
 		1, nullptr, 1, nullptr, MemoryFlag::NONE, L"ForceBuffer"), false);
 
 	// Create constant buffer
 	m_cbSimulation = ConstantBuffer::MakeUnique();
-	N_RETURN(m_cbSimulation->Create(pDevice, sizeof(CBSimulation), 1,
+	XUSG_N_RETURN(m_cbSimulation->Create(pDevice, sizeof(CBSimulation), 1,
 		nullptr, MemoryType::DEFAULT, MemoryFlag::NONE, L"CBSimulationSPH"), false);
 	uploaders.emplace_back(Resource::MakeUnique());
 	CBSimulation cbSimulation;
@@ -81,9 +81,9 @@ bool FluidSPH::Init(CommandList* pCommandList, uint32_t numParticles,
 		m_descriptorTableCache, m_gridBuffer.get());
 
 	// Create pipelines
-	N_RETURN(createPipelineLayouts(), false);
-	N_RETURN(createPipelines(), false);
-	N_RETURN(createDescriptorTables(), false);
+	XUSG_N_RETURN(createPipelineLayouts(), false);
+	XUSG_N_RETURN(createPipelines(), false);
+	XUSG_N_RETURN(createDescriptorTables(), false);
 
 	return true;
 }
@@ -131,7 +131,7 @@ bool FluidSPH::createPipelineLayouts()
 		pipelineLayout->SetRange(0, DescriptorType::SRV, 3, 0, 0, DescriptorFlag::DESCRIPTORS_VOLATILE);
 		pipelineLayout->SetRange(1, DescriptorType::UAV, 1, 0, 0,
 			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
-		X_RETURN(m_pipelineLayouts[REARRANGE], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
+		XUSG_X_RETURN(m_pipelineLayouts[REARRANGE], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
 			PipelineLayoutFlag::NONE, L"RearrangementLayout"), false);
 	}
 
@@ -142,7 +142,7 @@ bool FluidSPH::createPipelineLayouts()
 		pipelineLayout->SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorFlag::DESCRIPTORS_VOLATILE);
 		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0, 0,
 			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
-		X_RETURN(m_pipelineLayouts[DENSITY], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
+		XUSG_X_RETURN(m_pipelineLayouts[DENSITY], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
 			PipelineLayoutFlag::NONE, L"DensityLayout"), false);
 	}
 
@@ -153,7 +153,7 @@ bool FluidSPH::createPipelineLayouts()
 		pipelineLayout->SetRange(1, DescriptorType::SRV, 3, 0, 0, DescriptorFlag::DESCRIPTORS_VOLATILE);
 		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0, 0,
 			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
-		X_RETURN(m_pipelineLayouts[FORCE], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
+		XUSG_X_RETURN(m_pipelineLayouts[FORCE], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
 			PipelineLayoutFlag::NONE, L"ForceLayout"), false);
 	}
 
@@ -166,32 +166,32 @@ bool FluidSPH::createPipelines()
 
 	// Rearrangement
 	{
-		N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, csIndex, L"CSRearrange.cso"), false);
+		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, csIndex, L"CSRearrange.cso"), false);
 
 		const auto state = Compute::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[REARRANGE]);
 		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, csIndex++));
-		X_RETURN(m_pipelines[REARRANGE], state->GetPipeline(m_computePipelineCache.get(), L"Rearrangement"), false);
+		XUSG_X_RETURN(m_pipelines[REARRANGE], state->GetPipeline(m_computePipelineCache.get(), L"Rearrangement"), false);
 	}
 
 	// Density
 	{
-		N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, csIndex, L"CSDensitySPH.cso"), false);
+		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, csIndex, L"CSDensitySPH.cso"), false);
 
 		const auto state = Compute::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[DENSITY]);
 		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, csIndex++));
-		X_RETURN(m_pipelines[DENSITY], state->GetPipeline(m_computePipelineCache.get(), L"Density"), false);
+		XUSG_X_RETURN(m_pipelines[DENSITY], state->GetPipeline(m_computePipelineCache.get(), L"Density"), false);
 	}
 
 	// Force
 	{
-		N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, csIndex, L"CSForceSPH.cso"), false);
+		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, csIndex, L"CSForceSPH.cso"), false);
 
 		const auto state = Compute::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[FORCE]);
 		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, csIndex++));
-		X_RETURN(m_pipelines[FORCE], state->GetPipeline(m_computePipelineCache.get(), L"Force"), false);
+		XUSG_X_RETURN(m_pipelines[FORCE], state->GetPipeline(m_computePipelineCache.get(), L"Force"), false);
 	}
 
 	return true;
@@ -210,7 +210,7 @@ bool FluidSPH::createDescriptorTables()
 			m_forceBuffer->GetSRV()
 		};
 		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		X_RETURN(m_uavSrvTable, descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_uavSrvTable, descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 	}
 
 	// Create SRV tables
@@ -223,7 +223,7 @@ bool FluidSPH::createDescriptorTables()
 			m_offsetBuffer->GetSRV()
 		};
 		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		X_RETURN(m_srvTables[SRV_TABLE_REARRANGLE], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_srvTables[SRV_TABLE_REARRANGLE], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 	}
 
 	{
@@ -235,26 +235,26 @@ bool FluidSPH::createDescriptorTables()
 			m_densityBuffer->GetSRV()
 		};
 		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		X_RETURN(m_srvTables[SRV_TABLE_SPH], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_srvTables[SRV_TABLE_SPH], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 	}
 
 	// Create UAV tables
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		descriptorTable->SetDescriptors(0, 1, &m_pParticleBuffers[REARRANGED]->GetUAV());
-		X_RETURN(m_uavTables[UAV_TABLE_PARTICLE], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_uavTables[UAV_TABLE_PARTICLE], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 	}
 
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		descriptorTable->SetDescriptors(0, 1, &m_densityBuffer->GetUAV());
-		X_RETURN(m_uavTables[UAV_TABLE_DENSITY], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_uavTables[UAV_TABLE_DENSITY], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 	}
 
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		descriptorTable->SetDescriptors(0, 1, &m_forceBuffer->GetUAV());
-		X_RETURN(m_uavTables[UAV_TABLE_FORCE], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_uavTables[UAV_TABLE_FORCE], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 	}
 
 	return true;
@@ -278,7 +278,7 @@ void FluidSPH::rearrange(CommandList* pCommandList)
 	pCommandList->SetComputeDescriptorTable(0, m_srvTables[SRV_TABLE_REARRANGLE]);
 	pCommandList->SetComputeDescriptorTable(1, m_uavTables[UAV_TABLE_PARTICLE]);
 
-	pCommandList->Dispatch(DIV_UP(m_numParticles, 64), 1, 1);
+	pCommandList->Dispatch(XUSG_DIV_UP(m_numParticles, 64), 1, 1);
 }
 
 void FluidSPH::density(CommandList* pCommandList)
@@ -298,7 +298,7 @@ void FluidSPH::density(CommandList* pCommandList)
 	pCommandList->SetComputeDescriptorTable(1, m_srvTables[SRV_TABLE_SPH]);
 	pCommandList->SetComputeDescriptorTable(2, m_uavTables[UAV_TABLE_DENSITY]);
 
-	pCommandList->Dispatch(DIV_UP(m_numParticles, 64), 1, 1);
+	pCommandList->Dispatch(XUSG_DIV_UP(m_numParticles, 64), 1, 1);
 }
 
 void FluidSPH::force(CommandList* pCommandList)
@@ -318,5 +318,5 @@ void FluidSPH::force(CommandList* pCommandList)
 	pCommandList->SetComputeDescriptorTable(1, m_srvTables[SRV_TABLE_SPH]);
 	pCommandList->SetComputeDescriptorTable(2, m_uavTables[UAV_TABLE_FORCE]);
 
-	pCommandList->Dispatch(DIV_UP(m_numParticles, 64), 1, 1);
+	pCommandList->Dispatch(XUSG_DIV_UP(m_numParticles, 64), 1, 1);
 }

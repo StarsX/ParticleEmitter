@@ -41,18 +41,18 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width, uint32_t height,
 	// Load inputs
 	ObjLoader objLoader;
 	if (!objLoader.Import(fileName, true, true)) return false;
-	N_RETURN(createVB(pCommandList, objLoader.GetNumVertices(), objLoader.GetVertexStride(), objLoader.GetVertices(), uploaders), false);
-	N_RETURN(createIB(pCommandList, objLoader.GetNumIndices(), objLoader.GetIndices(), uploaders), false);
+	XUSG_N_RETURN(createVB(pCommandList, objLoader.GetNumVertices(), objLoader.GetVertexStride(), objLoader.GetVertices(), uploaders), false);
+	XUSG_N_RETURN(createIB(pCommandList, objLoader.GetNumIndices(), objLoader.GetIndices(), uploaders), false);
 
 	// Create constant buffer
 	m_cbBasePass = ConstantBuffer::MakeUnique();
-	N_RETURN(m_cbBasePass->Create(pDevice, sizeof(CBBasePass[FrameCount]), FrameCount,
+	XUSG_N_RETURN(m_cbBasePass->Create(pDevice, sizeof(CBBasePass[FrameCount]), FrameCount,
 		nullptr, MemoryType::UPLOAD, MemoryFlag::NONE, L"CBBasePass"), false);
 
 	// Create pipelines
-	N_RETURN(createInputLayout(), false);
-	N_RETURN(createPipelineLayouts(), false);
-	N_RETURN(createPipelines(rtFormat, dsFormat), false);
+	XUSG_N_RETURN(createInputLayout(), false);
+	XUSG_N_RETURN(createPipelineLayouts(), false);
+	XUSG_N_RETURN(createPipelines(rtFormat, dsFormat), false);
 
 	return true;
 }
@@ -143,7 +143,7 @@ bool Renderer::createVB(CommandList* pCommandList, uint32_t numVert, uint32_t st
 	const uint8_t* pData, vector<Resource::uptr>& uploaders)
 {
 	m_vertexBuffer = VertexBuffer::MakeUnique();
-	N_RETURN(m_vertexBuffer->Create(pCommandList->GetDevice(), numVert, stride, ResourceFlag::NONE,
+	XUSG_N_RETURN(m_vertexBuffer->Create(pCommandList->GetDevice(), numVert, stride, ResourceFlag::NONE,
 		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr, MemoryFlag::NONE, L"MeshVB"), false);
 	uploaders.emplace_back(Resource::MakeUnique());
 
@@ -159,7 +159,7 @@ bool Renderer::createIB(CommandList* pCommandList, uint32_t numIndices,
 
 	const uint32_t byteWidth = sizeof(uint32_t) * numIndices;
 	m_indexBuffer = IndexBuffer::MakeUnique();
-	N_RETURN(m_indexBuffer->Create(pCommandList->GetDevice(), byteWidth, Format::R32_UINT, ResourceFlag::NONE,
+	XUSG_N_RETURN(m_indexBuffer->Create(pCommandList->GetDevice(), byteWidth, Format::R32_UINT, ResourceFlag::NONE,
 		MemoryType::DEFAULT, 1, nullptr, 1, nullptr, 1, nullptr, MemoryFlag::NONE, L"MeshIB"), false);
 	uploaders.emplace_back(Resource::MakeUnique());
 
@@ -176,7 +176,7 @@ bool Renderer::createInputLayout()
 		{ "NORMAL",		0, Format::R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,	InputClassification::PER_VERTEX_DATA, 0 }
 	};
 
-	X_RETURN(m_pInputLayout, m_graphicsPipelineCache->CreateInputLayout(inputElements, static_cast<uint32_t>(size(inputElements))), false);
+	XUSG_X_RETURN(m_pInputLayout, m_graphicsPipelineCache->CreateInputLayout(inputElements, static_cast<uint32_t>(size(inputElements))), false);
 
 	return true;
 }
@@ -186,7 +186,7 @@ bool Renderer::createPipelineLayouts()
 	// This is a pipeline layout for base pass
 	const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
 	pipelineLayout->SetRootCBV(0, 0, 0, Shader::Stage::VS);
-	X_RETURN(m_pipelineLayout, pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
+	XUSG_X_RETURN(m_pipelineLayout, pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
 		PipelineLayoutFlag::ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT, L"BasePassLayout"), false);
 
 	return true;
@@ -198,8 +198,8 @@ bool Renderer::createPipelines(Format rtFormat, Format dsFormat)
 	auto psIndex = 0u;
 
 	// Base pass
-	N_RETURN(m_shaderPool->CreateShader(Shader::Stage::VS, vsIndex, L"VSBasePass.cso"), false);
-	N_RETURN(m_shaderPool->CreateShader(Shader::Stage::PS, psIndex, L"PSBasePass.cso"), false);
+	XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::VS, vsIndex, L"VSBasePass.cso"), false);
+	XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::PS, psIndex, L"PSBasePass.cso"), false);
 
 	const auto state = Graphics::State::MakeUnique();
 	state->IASetInputLayout(m_pInputLayout);
@@ -210,7 +210,7 @@ bool Renderer::createPipelines(Format rtFormat, Format dsFormat)
 	state->OMSetNumRenderTargets(1);
 	state->OMSetRTVFormat(0, rtFormat);
 	state->OMSetDSVFormat(dsFormat);
-	X_RETURN(m_pipeline, state->GetPipeline(m_graphicsPipelineCache.get(), L"BasePass"), false);
+	XUSG_X_RETURN(m_pipeline, state->GetPipeline(m_graphicsPipelineCache.get(), L"BasePass"), false);
 
 	return true;
 }

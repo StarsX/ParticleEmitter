@@ -56,13 +56,13 @@ bool Emitter::Init(CommandList* pCommandList, uint32_t numParticles,
 
 	// Create resources and pipelines
 	m_counter = RawBuffer::MakeShared();
-	N_RETURN(m_counter->Create(pDevice, sizeof(uint32_t),
+	XUSG_N_RETURN(m_counter->Create(pDevice, sizeof(uint32_t),
 		ResourceFlag::ALLOW_UNORDERED_ACCESS | ResourceFlag::DENY_SHADER_RESOURCE,
 		MemoryType::DEFAULT, 0, nullptr, 1, nullptr, MemoryFlag::NONE, L"Counter"), false);
 
 	m_emitterBuffer = StructuredBuffer::MakeUnique();
 	m_emitterBuffer->SetCounter(m_counter);
-	N_RETURN(m_emitterBuffer->Create(pDevice, 1 << 24, sizeof(EmitterInfo),
+	XUSG_N_RETURN(m_emitterBuffer->Create(pDevice, 1 << 24, sizeof(EmitterInfo),
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1,
 		nullptr, 1, nullptr, MemoryFlag::NONE, L"EmitterBuffer"), false);
 
@@ -70,7 +70,7 @@ bool Emitter::Init(CommandList* pCommandList, uint32_t numParticles,
 	for (auto& particleBuffer : m_particleBuffers)
 	{
 		particleBuffer = StructuredBuffer::MakeUnique();
-		N_RETURN(particleBuffer->Create(pDevice, numParticles, sizeof(ParticleInfo),
+		XUSG_N_RETURN(particleBuffer->Create(pDevice, numParticles, sizeof(ParticleInfo),
 			ResourceFlag::ALLOW_UNORDERED_ACCESS, MemoryType::DEFAULT, 1, nullptr, 1, nullptr,
 			MemoryFlag::NONE, (L"ParticleBuffer" + to_wstring(particleBufferIdx++)).c_str()), false);
 	}
@@ -88,12 +88,12 @@ bool Emitter::Init(CommandList* pCommandList, uint32_t numParticles,
 
 	// Create constant buffer
 	m_cbPerObject = ConstantBuffer::MakeUnique();
-	N_RETURN(m_cbPerObject->Create(pDevice, sizeof(CBPerObject[FrameCount]), FrameCount,
+	XUSG_N_RETURN(m_cbPerObject->Create(pDevice, sizeof(CBPerObject[FrameCount]), FrameCount,
 		nullptr, MemoryType::UPLOAD, MemoryFlag::NONE, L"CBParticle"), false);
 
-	N_RETURN(createPipelineLayouts(), false);
-	N_RETURN(createPipelines(pInputLayout, rtFormat, dsFormat), false);
-	N_RETURN(createDescriptorTables(), false);
+	XUSG_N_RETURN(createPipelineLayouts(), false);
+	XUSG_N_RETURN(createPipelines(pInputLayout, rtFormat, dsFormat), false);
+	XUSG_N_RETURN(createDescriptorTables(), false);
 
 	return true;
 }
@@ -112,7 +112,7 @@ bool Emitter::SetEmitterCount(CommandList* pCommandList, RawBuffer* pCounter,
 		ResourceBarrier barriers[2];
 		auto numBarriers = m_emitterBuffer->SetBarrier(barriers, ResourceState::COPY_SOURCE);
 
-		N_RETURN(emitterScratch->Create(pCommandList->GetDevice(), m_numEmitters, sizeof(EmitterInfo), ResourceFlag::NONE,
+		XUSG_N_RETURN(emitterScratch->Create(pCommandList->GetDevice(), m_numEmitters, sizeof(EmitterInfo), ResourceFlag::NONE,
 			MemoryType::DEFAULT, 1, nullptr, 0, nullptr, MemoryFlag::NONE, L"EmitterBuffer"), false);
 
 		// Set barriers
@@ -140,7 +140,7 @@ bool Emitter::SetEmitterCount(CommandList* pCommandList, RawBuffer* pCounter,
 			m_srvVertexBuffer
 		};
 		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		X_RETURN(m_srvTable, descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_srvTable, descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 	}
 
 	return true;
@@ -216,7 +216,7 @@ void Emitter::EmitParticle(const CommandList* pCommandList, uint8_t frameIndex,
 	pCommandList->SetComputeDescriptorTable(1, m_srvTable);
 	pCommandList->SetComputeDescriptorTable(2, uavTable);
 
-	pCommandList->Dispatch(DIV_UP(numParticles, 64), 1, 1);
+	pCommandList->Dispatch(XUSG_DIV_UP(numParticles, 64), 1, 1);
 }
 
 void Emitter::Render(const CommandList* pCommandList, uint8_t frameIndex,
@@ -322,7 +322,7 @@ void Emitter::Visualize(const CommandList* pCommandList, const Descriptor& rtv,
 	pCommandList->IASetPrimitiveTopology(PrimitiveTopology::POINTLIST);
 
 	// Set descriptor tables
-	pCommandList->SetGraphics32BitConstants(0, SizeOfInUint32(XMFLOAT4X4), &worldViewProj);
+	pCommandList->SetGraphics32BitConstants(0, XUSG_SizeOfInUint32(XMFLOAT4X4), &worldViewProj);
 	pCommandList->SetGraphicsDescriptorTable(1, m_srvTable);
 
 	pCommandList->Draw(m_numEmitters, 1, 0, 0);
@@ -338,10 +338,10 @@ bool Emitter::createPipelineLayouts()
 	// Generate uniformized distribution
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetConstants(0, SizeOfInUint32(XMFLOAT3X4), 0, 0, Shader::Stage::VS);
+		pipelineLayout->SetConstants(0, XUSG_SizeOfInUint32(XMFLOAT3X4), 0, 0, Shader::Stage::VS);
 		pipelineLayout->SetRange(1, DescriptorType::UAV, 1, 0, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		pipelineLayout->SetShaderStage(1, Shader::Stage::DS);
-		X_RETURN(m_pipelineLayouts[DISTRIBUTE], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
+		XUSG_X_RETURN(m_pipelineLayouts[DISTRIBUTE], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
 			PipelineLayoutFlag::ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT, L"DistributionLayout"), false);
 	}
 
@@ -353,7 +353,7 @@ bool Emitter::createPipelineLayouts()
 		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		pipelineLayout->SetShaderStage(1, Shader::Stage::VS);
 		pipelineLayout->SetShaderStage(2, Shader::Stage::VS);
-		X_RETURN(m_pipelineLayouts[PARTICLE], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
+		XUSG_X_RETURN(m_pipelineLayouts[PARTICLE], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
 			PipelineLayoutFlag::NONE, L"ParticleLayout"), false);
 	}
 
@@ -368,7 +368,7 @@ bool Emitter::createPipelineLayouts()
 		pipelineLayout->SetShaderStage(1, Shader::Stage::VS);
 		pipelineLayout->SetShaderStage(2, Shader::Stage::VS);
 		pipelineLayout->SetShaderStage(3, Shader::Stage::VS);
-		X_RETURN(m_pipelineLayouts[PARTICLE_SPH], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
+		XUSG_X_RETURN(m_pipelineLayouts[PARTICLE_SPH], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
 			PipelineLayoutFlag::NONE, L"ParticleSPHLayout"), false);
 	}
 
@@ -386,7 +386,7 @@ bool Emitter::createPipelineLayouts()
 		pipelineLayout->SetShaderStage(2, Shader::Stage::VS);
 		pipelineLayout->SetShaderStage(3, Shader::Stage::VS);
 		pipelineLayout->SetShaderStage(4, Shader::Stage::VS);
-		X_RETURN(m_pipelineLayouts[PARTICLE_FHF], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
+		XUSG_X_RETURN(m_pipelineLayouts[PARTICLE_FHF], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
 			PipelineLayoutFlag::NONE, L"ParticleFHFLayout"), false);
 	}
 
@@ -397,16 +397,16 @@ bool Emitter::createPipelineLayouts()
 		pipelineLayout->SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorFlag::DATA_STATIC);
 		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0, 0,
 			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
-		X_RETURN(m_pipelineLayouts[EMISSION], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
+		XUSG_X_RETURN(m_pipelineLayouts[EMISSION], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
 			PipelineLayoutFlag::NONE, L"EmissionLayout"), false);
 	}
 
 	// Show emitters
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-		pipelineLayout->SetConstants(0, SizeOfInUint32(XMFLOAT4X4), 0, 0, Shader::Stage::VS);
+		pipelineLayout->SetConstants(0, XUSG_SizeOfInUint32(XMFLOAT4X4), 0, 0, Shader::Stage::VS);
 		pipelineLayout->SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorFlag::DATA_STATIC);
-		X_RETURN(m_pipelineLayouts[VISUALIZE], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
+		XUSG_X_RETURN(m_pipelineLayouts[VISUALIZE], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
 			PipelineLayoutFlag::NONE, L"VisualizationLayout"), false);
 	}
 
@@ -423,9 +423,9 @@ bool Emitter::createPipelines(const InputLayout* pInputLayout, Format rtFormat, 
 
 	// Generate uniform distribution
 	{
-		N_RETURN(m_shaderPool->CreateShader(Shader::Stage::VS, vsIndex, L"VSDistribute.cso"), false);
-		N_RETURN(m_shaderPool->CreateShader(Shader::Stage::HS, hsIndex, L"HSDistribute.cso"), false);
-		N_RETURN(m_shaderPool->CreateShader(Shader::Stage::DS, dsIndex, L"DSDistribute.cso"), false);
+		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::VS, vsIndex, L"VSDistribute.cso"), false);
+		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::HS, hsIndex, L"HSDistribute.cso"), false);
+		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::DS, dsIndex, L"DSDistribute.cso"), false);
 
 		const auto state = Graphics::State::MakeUnique();
 		state->IASetInputLayout(pInputLayout);
@@ -435,13 +435,13 @@ bool Emitter::createPipelines(const InputLayout* pInputLayout, Format rtFormat, 
 		state->SetShader(Shader::Stage::DS, m_shaderPool->GetShader(Shader::Stage::DS, dsIndex++));
 		state->DSSetState(Graphics::DEPTH_STENCIL_NONE, m_graphicsPipelineCache.get());
 		state->IASetPrimitiveTopologyType(PrimitiveTopologyType::PATCH);
-		X_RETURN(m_pipelines[DISTRIBUTE], state->GetPipeline(m_graphicsPipelineCache.get(), L"Distribution"), false);
+		XUSG_X_RETURN(m_pipelines[DISTRIBUTE], state->GetPipeline(m_graphicsPipelineCache.get(), L"Distribution"), false);
 	}
 
 	// Particle emission and integration
-	N_RETURN(m_shaderPool->CreateShader(Shader::Stage::PS, psIndex, L"PSConstColor.cso"), false);
+	XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::PS, psIndex, L"PSConstColor.cso"), false);
 	{
-		N_RETURN(m_shaderPool->CreateShader(Shader::Stage::VS, vsIndex, L"VSParticle.cso"), false);
+		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::VS, vsIndex, L"VSParticle.cso"), false);
 
 		const auto state = Graphics::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[PARTICLE]);
@@ -451,12 +451,12 @@ bool Emitter::createPipelines(const InputLayout* pInputLayout, Format rtFormat, 
 		state->OMSetNumRenderTargets(1);
 		state->OMSetRTVFormat(0, rtFormat);
 		state->OMSetDSVFormat(dsFormat);
-		X_RETURN(m_pipelines[PARTICLE], state->GetPipeline(m_graphicsPipelineCache.get(), L"Particle"), false);
+		XUSG_X_RETURN(m_pipelines[PARTICLE], state->GetPipeline(m_graphicsPipelineCache.get(), L"Particle"), false);
 	}
 
 	// Particle emission and integration for SPH
 	{
-		N_RETURN(m_shaderPool->CreateShader(Shader::Stage::VS, vsIndex, L"VSParticleSPH.cso"), false);
+		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::VS, vsIndex, L"VSParticleSPH.cso"), false);
 
 		const auto state = Graphics::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[PARTICLE_SPH]);
@@ -466,12 +466,12 @@ bool Emitter::createPipelines(const InputLayout* pInputLayout, Format rtFormat, 
 		state->OMSetNumRenderTargets(1);
 		state->OMSetRTVFormat(0, rtFormat);
 		state->OMSetDSVFormat(dsFormat);
-		X_RETURN(m_pipelines[PARTICLE_SPH], state->GetPipeline(m_graphicsPipelineCache.get(), L"ParticleSPH"), false);
+		XUSG_X_RETURN(m_pipelines[PARTICLE_SPH], state->GetPipeline(m_graphicsPipelineCache.get(), L"ParticleSPH"), false);
 	}
 
 	// Particle emission and integration for fast hybrid fluid
 	{
-		N_RETURN(m_shaderPool->CreateShader(Shader::Stage::VS, vsIndex, L"VSParticleFHF.cso"), false);
+		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::VS, vsIndex, L"VSParticleFHF.cso"), false);
 
 		const auto state = Graphics::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[PARTICLE_FHF]);
@@ -481,22 +481,22 @@ bool Emitter::createPipelines(const InputLayout* pInputLayout, Format rtFormat, 
 		state->OMSetNumRenderTargets(1);
 		state->OMSetRTVFormat(0, rtFormat);
 		state->OMSetDSVFormat(dsFormat);
-		X_RETURN(m_pipelines[PARTICLE_FHF], state->GetPipeline(m_graphicsPipelineCache.get(), L"ParticleFHF"), false);
+		XUSG_X_RETURN(m_pipelines[PARTICLE_FHF], state->GetPipeline(m_graphicsPipelineCache.get(), L"ParticleFHF"), false);
 	}
 
 	// Particle emission
 	{
-		N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, csIndex, L"CSEmit.cso"), false);
+		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, csIndex, L"CSEmit.cso"), false);
 
 		const auto state = Compute::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[EMISSION]);
 		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, csIndex++));
-		X_RETURN(m_pipelines[EMISSION], state->GetPipeline(m_computePipelineCache.get(), L"Emission"), false);
+		XUSG_X_RETURN(m_pipelines[EMISSION], state->GetPipeline(m_computePipelineCache.get(), L"Emission"), false);
 	}
 
 	// Show emitters
 	{
-		N_RETURN(m_shaderPool->CreateShader(Shader::Stage::VS, vsIndex, L"VSShowEmitter.cso"), false);
+		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::VS, vsIndex, L"VSShowEmitter.cso"), false);
 
 		const auto state = Graphics::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[VISUALIZE]);
@@ -506,7 +506,7 @@ bool Emitter::createPipelines(const InputLayout* pInputLayout, Format rtFormat, 
 		state->OMSetNumRenderTargets(1);
 		state->OMSetRTVFormat(0, rtFormat);
 		state->OMSetDSVFormat(dsFormat);
-		X_RETURN(m_pipelines[VISUALIZE], state->GetPipeline(m_graphicsPipelineCache.get(), L"Visualization"), false);
+		XUSG_X_RETURN(m_pipelines[VISUALIZE], state->GetPipeline(m_graphicsPipelineCache.get(), L"Visualization"), false);
 	}
 
 	return true;
@@ -518,20 +518,20 @@ bool Emitter::createDescriptorTables()
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		descriptorTable->SetDescriptors(0, 1, &m_emitterBuffer->GetUAV(), TEMPORARY_POOL);
-		X_RETURN(m_uavTables[UAV_TABLE_EMITTER], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_uavTables[UAV_TABLE_EMITTER], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 	}
 
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		descriptorTable->SetDescriptors(0, 1, &m_counter->GetUAV(), TEMPORARY_POOL);
-		X_RETURN(m_uavTables[UAV_TABLE_COUNTER], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_uavTables[UAV_TABLE_COUNTER], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 	}
 
 	for (uint8_t i = 0; i < 2; ++i)
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		descriptorTable->SetDescriptors(0, 1, &m_particleBuffers[i]->GetUAV());
-		X_RETURN(m_uavTables[UAV_TABLE_PARTICLE + i], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_uavTables[UAV_TABLE_PARTICLE + i], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 	}
 
 	// Create the sampler
@@ -539,7 +539,7 @@ bool Emitter::createDescriptorTables()
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		const auto samplerAnisoWrap = SamplerPreset::LINEAR_CLAMP;
 		descriptorTable->SetSamplers(0, 1, &samplerAnisoWrap, m_descriptorTableCache.get());
-		X_RETURN(m_samplerTable, descriptorTable->GetSamplerTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_samplerTable, descriptorTable->GetSamplerTable(m_descriptorTableCache.get()), false);
 	}
 
 	return true;
@@ -558,7 +558,7 @@ void Emitter::distribute(const CommandList* pCommandList, const VertexBuffer* pV
 	scale *= density;
 	XMFLOAT3X4 transform;
 	XMStoreFloat3x4(&transform, XMMatrixScaling(scale, scale, scale));
-	pCommandList->SetGraphics32BitConstants(0, SizeOfInUint32(XMFLOAT3X4), &transform);
+	pCommandList->SetGraphics32BitConstants(0, XUSG_SizeOfInUint32(XMFLOAT3X4), &transform);
 	pCommandList->SetGraphicsDescriptorTable(1, m_uavTables[UAV_TABLE_EMITTER]);
 
 	pCommandList->IASetVertexBuffers(0, 1, &pVB->GetVBV());
