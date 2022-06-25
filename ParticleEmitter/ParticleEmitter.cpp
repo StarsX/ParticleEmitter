@@ -170,30 +170,24 @@ void ParticleEmitter::LoadAssets()
 	vector<Resource::uptr> uploaders(0);
 	// Create renderer
 	m_renderer = make_unique<Renderer>();
-	if (!m_renderer) ThrowIfFailed(E_FAIL);
-	if (!m_renderer->Init(pCommandList, m_width, m_height, uploaders, m_meshFileName.c_str(),
-		Format::B8G8R8A8_UNORM, Format::D24_UNORM_S8_UINT))
-		ThrowIfFailed(E_FAIL);
+	XUSG_N_RETURN(m_renderer->Init(pCommandList, m_width, m_height, uploaders, m_meshFileName.c_str(),
+		Format::B8G8R8A8_UNORM, Format::D24_UNORM_S8_UINT), ThrowIfFailed(E_FAIL));
 
 	// Create emitter
 	const auto numParticles = 1u << 16;
 	m_emitter = make_unique<Emitter>();
-	if (!m_emitter) ThrowIfFailed(E_FAIL);
-	if (!m_emitter->Init(pCommandList, numParticles, m_descriptorTableCache, uploaders,
-		m_renderer->GetInputLayout(), Format::B8G8R8A8_UNORM, Format::D24_UNORM_S8_UINT))
-		ThrowIfFailed(E_FAIL);
+	XUSG_N_RETURN(m_emitter->Init(pCommandList, numParticles, m_descriptorTableCache, uploaders,
+		m_renderer->GetInputLayout(), Format::B8G8R8A8_UNORM, Format::D24_UNORM_S8_UINT), ThrowIfFailed(E_FAIL));
 
 	// Create SPH fluid simulator
 	m_fluidSPH = make_unique<FluidSPH>();
-	if (!m_fluidSPH) ThrowIfFailed(E_FAIL);
-	if (!m_fluidSPH->Init(pCommandList, numParticles, m_descriptorTableCache, uploaders, m_emitter->GetParticleBuffers()))
-		ThrowIfFailed(E_FAIL);
+	XUSG_N_RETURN(m_fluidSPH->Init(pCommandList, numParticles, m_descriptorTableCache,
+		uploaders, m_emitter->GetParticleBuffers()), ThrowIfFailed(E_FAIL));
 
 	// Create fast hybrid fluid simulator
 	m_fluidFH = make_unique<FluidFH>();
-	if (!m_fluidFH) ThrowIfFailed(E_FAIL);
-	if (!m_fluidFH->Init(pCommandList, numParticles, m_descriptorTableCache, uploaders, Format::B8G8R8A8_UNORM))
-		ThrowIfFailed(E_FAIL);
+	XUSG_N_RETURN(m_fluidFH->Init(pCommandList, numParticles, m_descriptorTableCache,
+		uploaders, Format::B8G8R8A8_UNORM), ThrowIfFailed(E_FAIL));
 
 #if defined(_DEBUG)
 	ComputeUtil prefixSumUtil(m_device);
@@ -299,10 +293,10 @@ void ParticleEmitter::OnRender()
 	PopulateCommandList();
 
 	// Execute the command list.
-	m_commandQueue->SubmitCommandList(m_commandList.get());
+	m_commandQueue->ExecuteCommandList(m_commandList.get());
 
 	// Present the frame.
-	ThrowIfFailed(m_swapChain->Present(0, PresentFlag::ALLOW_TEARING));
+	XUSG_N_RETURN(m_swapChain->Present(0, PresentFlag::ALLOW_TEARING), ThrowIfFailed(E_FAIL));
 
 	MoveToNextFrame();
 }
@@ -465,7 +459,7 @@ void ParticleEmitter::PopulateCommandList()
 	numBarriers = m_renderTargets[m_frameIndex]->SetBarrier(barriers, ResourceState::PRESENT);
 	pCommandList->Barrier(numBarriers, barriers);
 
-	ThrowIfFailed(pCommandList->Close());
+	XUSG_N_RETURN(pCommandList->Close(), ThrowIfFailed(E_FAIL));
 }
 
 // Wait for pending GPU work to complete.
