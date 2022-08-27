@@ -168,11 +168,9 @@ void Emitter::Distribute(CommandList* pCommandList, const RawBuffer* pCounter,
 {
 	m_srvVertexBuffer = pVB->GetSRV();
 
-	const DescriptorPool descriptorPools[] =
-	{
-		m_descriptorTableCache->GetDescriptorPool(CBV_SRV_UAV_POOL, TEMPORARY_POOL),
-	};
-	pCommandList->SetDescriptorPools(static_cast<uint32_t>(size(descriptorPools)), descriptorPools);
+	// Bind the descriptor pool.
+	const auto descriptorPool = m_descriptorTableCache->GetDescriptorPool(CBV_SRV_UAV_POOL);
+	pCommandList->SetDescriptorPools(1, &descriptorPool);
 
 	// Set barriers
 	ResourceBarrier barriers[2];
@@ -201,12 +199,6 @@ void Emitter::EmitParticle(const CommandList* pCommandList, uint8_t frameIndex,
 {
 	//if (m_cbParticle.BaseSeed <= 0.0) return;
 
-	const DescriptorPool descriptorPools[] =
-	{
-		m_descriptorTableCache->GetDescriptorPool(CBV_SRV_UAV_POOL),
-	};
-	pCommandList->SetDescriptorPools(static_cast<uint32_t>(size(descriptorPools)), descriptorPools);
-
 	// Set pipeline state
 	pCommandList->SetComputePipelineLayout(m_pipelineLayouts[EMISSION]);
 	pCommandList->SetPipelineState(m_pipelines[EMISSION]);
@@ -222,12 +214,6 @@ void Emitter::EmitParticle(const CommandList* pCommandList, uint8_t frameIndex,
 void Emitter::Render(const CommandList* pCommandList, uint8_t frameIndex,
 	const Descriptor& rtv, const Descriptor* pDsv)
 {
-	const DescriptorPool descriptorPools[] =
-	{
-		m_descriptorTableCache->GetDescriptorPool(CBV_SRV_UAV_POOL),
-	};
-	pCommandList->SetDescriptorPools(static_cast<uint32_t>(size(descriptorPools)), descriptorPools);
-
 	pCommandList->OMSetRenderTargets(1, &rtv, pDsv);
 
 	// Set pipeline state
@@ -247,12 +233,6 @@ void Emitter::Render(const CommandList* pCommandList, uint8_t frameIndex,
 void Emitter::RenderSPH(CommandList* pCommandList, uint8_t frameIndex, const Descriptor& rtv,
 	const Descriptor* pDsv, const DescriptorTable& fluidDescriptorTable)
 {
-	const DescriptorPool descriptorPools[] =
-	{
-		m_descriptorTableCache->GetDescriptorPool(CBV_SRV_UAV_POOL),
-	};
-	pCommandList->SetDescriptorPools(static_cast<uint32_t>(size(descriptorPools)), descriptorPools);
-
 	// Set barrier with promotion
 	ResourceBarrier barrier;
 	m_particleBuffers[INTEGRATED]->SetBarrier(&barrier, ResourceState::UNORDERED_ACCESS);
@@ -279,13 +259,6 @@ void Emitter::RenderSPH(CommandList* pCommandList, uint8_t frameIndex, const Des
 void Emitter::RenderFHF(const CommandList* pCommandList, uint8_t frameIndex, const Descriptor& rtv,
 	const Descriptor* pDsv, const DescriptorTable& fluidDescriptorTable)
 {
-	const DescriptorPool descriptorPools[] =
-	{
-		m_descriptorTableCache->GetDescriptorPool(CBV_SRV_UAV_POOL),
-		m_descriptorTableCache->GetDescriptorPool(SAMPLER_POOL)
-	};
-	pCommandList->SetDescriptorPools(static_cast<uint32_t>(size(descriptorPools)), descriptorPools);
-
 	pCommandList->OMSetRenderTargets(1, &rtv, pDsv);
 
 	// Set pipeline state
@@ -299,7 +272,6 @@ void Emitter::RenderFHF(const CommandList* pCommandList, uint8_t frameIndex, con
 	pCommandList->SetGraphicsDescriptorTable(1, m_srvTable);
 	pCommandList->SetGraphicsDescriptorTable(2, m_uavTables[UAV_TABLE_PARTICLE]);
 	pCommandList->SetGraphicsDescriptorTable(3, fluidDescriptorTable);
-	pCommandList->SetGraphicsDescriptorTable(4, m_samplerTable);
 
 	pCommandList->Draw(m_numParticles, 1, 0, 0);
 }
@@ -307,12 +279,6 @@ void Emitter::RenderFHF(const CommandList* pCommandList, uint8_t frameIndex, con
 void Emitter::Visualize(const CommandList* pCommandList, const Descriptor& rtv,
 	const Descriptor* pDsv, const XMFLOAT4X4& worldViewProj)
 {
-	const DescriptorPool descriptorPools[] =
-	{
-		m_descriptorTableCache->GetDescriptorPool(CBV_SRV_UAV_POOL),
-	};
-	pCommandList->SetDescriptorPools(static_cast<uint32_t>(size(descriptorPools)), descriptorPools);
-
 	pCommandList->OMSetRenderTargets(1, &rtv, pDsv);
 
 	// Set pipeline state
@@ -374,6 +340,8 @@ bool Emitter::createPipelineLayouts()
 
 	// Particle emission and integration for fast hybrid fluid
 	{
+		const auto& sampler = m_descriptorTableCache->GetSampler(SamplerPreset::LINEAR_CLAMP);
+
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
 		pipelineLayout->SetRootCBV(0, 0, 0, Shader::Stage::VS);
 		pipelineLayout->SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorFlag::DATA_STATIC);
@@ -381,11 +349,10 @@ bool Emitter::createPipelineLayouts()
 		pipelineLayout->SetRange(3, DescriptorType::CBV, 1, 1, 0, DescriptorFlag::DATA_STATIC);
 		pipelineLayout->SetRange(3, DescriptorType::SRV, 1, 2);
 		pipelineLayout->SetRange(3, DescriptorType::UAV, 4, 1, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
-		pipelineLayout->SetRange(4, DescriptorType::SAMPLER, 1, 0);
 		pipelineLayout->SetShaderStage(1, Shader::Stage::VS);
 		pipelineLayout->SetShaderStage(2, Shader::Stage::VS);
 		pipelineLayout->SetShaderStage(3, Shader::Stage::VS);
-		pipelineLayout->SetShaderStage(4, Shader::Stage::VS);
+		pipelineLayout->SetStaticSamplers(&sampler, 1, 0, 0, Shader::Stage::VS);
 		XUSG_X_RETURN(m_pipelineLayouts[PARTICLE_FHF], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
 			PipelineLayoutFlag::NONE, L"ParticleFHFLayout"), false);
 	}
@@ -517,13 +484,13 @@ bool Emitter::createDescriptorTables()
 	// Create UAV tables
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
-		descriptorTable->SetDescriptors(0, 1, &m_emitterBuffer->GetUAV(), TEMPORARY_POOL);
+		descriptorTable->SetDescriptors(0, 1, &m_emitterBuffer->GetUAV());
 		XUSG_X_RETURN(m_uavTables[UAV_TABLE_EMITTER], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 	}
 
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
-		descriptorTable->SetDescriptors(0, 1, &m_counter->GetUAV(), TEMPORARY_POOL);
+		descriptorTable->SetDescriptors(0, 1, &m_counter->GetUAV());
 		XUSG_X_RETURN(m_uavTables[UAV_TABLE_COUNTER], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
 	}
 
@@ -532,14 +499,6 @@ bool Emitter::createDescriptorTables()
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		descriptorTable->SetDescriptors(0, 1, &m_particleBuffers[i]->GetUAV());
 		XUSG_X_RETURN(m_uavTables[UAV_TABLE_PARTICLE + i], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
-	}
-
-	// Create the sampler
-	{
-		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
-		const auto samplerAnisoWrap = SamplerPreset::LINEAR_CLAMP;
-		descriptorTable->SetSamplers(0, 1, &samplerAnisoWrap, m_descriptorTableCache.get());
-		XUSG_X_RETURN(m_samplerTable, descriptorTable->GetSamplerTable(m_descriptorTableCache.get()), false);
 	}
 
 	return true;

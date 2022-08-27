@@ -61,12 +61,6 @@ protected:
 		NUM_PIPELINE
 	};
 
-	enum DescriptorPoolIndex : uint8_t
-	{
-		IMMUTABLE_POOL,
-		TEMPORARY_POOL
-	};
-
 	enum UAVTable : uint8_t
 	{
 		UAV_TABLE_EMITTER,
@@ -95,7 +89,6 @@ protected:
 
 	XUSG::DescriptorTable	m_uavTables[NUM_UAV_TABLE];
 	XUSG::DescriptorTable	m_srvTable;
-	XUSG::DescriptorTable	m_samplerTable;
 
 	XUSG::Descriptor		m_srvVertexBuffer;
 
