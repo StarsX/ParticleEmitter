@@ -2,7 +2,6 @@
 // Copyright (c) XU, Tianchen. All rights reserved.
 //--------------------------------------------------------------------------------------
 
-#include "DXFrameworkHelper.h"
 #include "Optional/XUSGObjLoader.h"
 #include "Renderer.h"
 

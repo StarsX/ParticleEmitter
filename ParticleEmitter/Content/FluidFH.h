@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include "DXFramework.h"
 #include "Core/XUSG.h"
-#include "Optional/XUSGComputeUtil.h"
 
 class FluidFH
 {
