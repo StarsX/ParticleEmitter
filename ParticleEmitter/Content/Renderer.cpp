@@ -19,7 +19,7 @@ struct CBBasePass
 Renderer::Renderer() :
 	m_frameParity(0)
 {
-	m_shaderPool = ShaderPool::MakeUnique();
+	m_shaderLib = ShaderLib::MakeUnique();
 	
 }
 
@@ -32,8 +32,8 @@ bool Renderer::Init(CommandList* pCommandList, uint32_t width, uint32_t height,
 	Format rtFormat, Format dsFormat)
 {
 	const auto pDevice = pCommandList->GetDevice();
-	m_graphicsPipelineCache = Graphics::PipelineCache::MakeUnique(pDevice);
-	m_pipelineLayoutCache = PipelineLayoutCache::MakeUnique(pDevice);
+	m_graphicsPipelineLib = Graphics::PipelineLib::MakeUnique(pDevice);
+	m_pipelineLayoutLib = PipelineLayoutLib::MakeUnique(pDevice);
 
 	m_viewport = XMUINT2(width, height);
 
@@ -175,7 +175,7 @@ bool Renderer::createInputLayout()
 		{ "NORMAL",		0, Format::R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT,	InputClassification::PER_VERTEX_DATA, 0 }
 	};
 
-	XUSG_X_RETURN(m_pInputLayout, m_graphicsPipelineCache->CreateInputLayout(inputElements, static_cast<uint32_t>(size(inputElements))), false);
+	XUSG_X_RETURN(m_pInputLayout, m_graphicsPipelineLib->CreateInputLayout(inputElements, static_cast<uint32_t>(size(inputElements))), false);
 
 	return true;
 }
@@ -185,7 +185,7 @@ bool Renderer::createPipelineLayouts()
 	// This is a pipeline layout for base pass
 	const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
 	pipelineLayout->SetRootCBV(0, 0, 0, Shader::Stage::VS);
-	XUSG_X_RETURN(m_pipelineLayout, pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
+	XUSG_X_RETURN(m_pipelineLayout, pipelineLayout->GetPipelineLayout(m_pipelineLayoutLib.get(),
 		PipelineLayoutFlag::ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT, L"BasePassLayout"), false);
 
 	return true;
@@ -197,19 +197,19 @@ bool Renderer::createPipelines(Format rtFormat, Format dsFormat)
 	auto psIndex = 0u;
 
 	// Base pass
-	XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::VS, vsIndex, L"VSBasePass.cso"), false);
-	XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::PS, psIndex, L"PSBasePass.cso"), false);
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::VS, vsIndex, L"VSBasePass.cso"), false);
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::PS, psIndex, L"PSBasePass.cso"), false);
 
 	const auto state = Graphics::State::MakeUnique();
 	state->IASetInputLayout(m_pInputLayout);
 	state->SetPipelineLayout(m_pipelineLayout);
-	state->SetShader(Shader::Stage::VS, m_shaderPool->GetShader(Shader::Stage::VS, vsIndex));
-	state->SetShader(Shader::Stage::PS, m_shaderPool->GetShader(Shader::Stage::PS, psIndex));
+	state->SetShader(Shader::Stage::VS, m_shaderLib->GetShader(Shader::Stage::VS, vsIndex));
+	state->SetShader(Shader::Stage::PS, m_shaderLib->GetShader(Shader::Stage::PS, psIndex));
 	state->IASetPrimitiveTopologyType(PrimitiveTopologyType::TRIANGLE);
 	state->OMSetNumRenderTargets(1);
 	state->OMSetRTVFormat(0, rtFormat);
 	state->OMSetDSVFormat(dsFormat);
-	XUSG_X_RETURN(m_pipeline, state->GetPipeline(m_graphicsPipelineCache.get(), L"BasePass"), false);
+	XUSG_X_RETURN(m_pipeline, state->GetPipeline(m_graphicsPipelineLib.get(), L"BasePass"), false);
 
 	return true;
 }

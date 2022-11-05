@@ -14,7 +14,7 @@ public:
 	virtual ~FluidSPH();
 
 	bool Init(XUSG::CommandList* pCommandList, uint32_t numParticles,
-		const XUSG::DescriptorTableCache::sptr& descriptorTableCache,
+		const XUSG::DescriptorTableLib::sptr& descriptorTableLib,
 		std::vector<XUSG::Resource::uptr>& uploaders,
 		const XUSG::StructuredBuffer::uptr* pParticleBuffers);
 
@@ -77,10 +77,10 @@ protected:
 	void density(XUSG::CommandList* pCommandList);
 	void force(XUSG::CommandList* pCommandList);
 
-	XUSG::ShaderPool::uptr				m_shaderPool;
-	XUSG::Compute::PipelineCache::uptr	m_computePipelineCache;
-	XUSG::PipelineLayoutCache::uptr		m_pipelineLayoutCache;
-	XUSG::DescriptorTableCache::sptr	m_descriptorTableCache;
+	XUSG::ShaderLib::uptr				m_shaderLib;
+	XUSG::Compute::PipelineLib::uptr	m_computePipelineLib;
+	XUSG::PipelineLayoutLib::uptr		m_pipelineLayoutLib;
+	XUSG::DescriptorTableLib::sptr		m_descriptorTableLib;
 
 	XUSG::ComputeUtil		m_prefixSumUtil;
 

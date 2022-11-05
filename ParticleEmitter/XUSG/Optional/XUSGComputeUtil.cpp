@@ -5,9 +5,9 @@ using namespace XUSG;
 
 ComputeUtil::ComputeUtil()
 {
-	m_shaderPool = ShaderPool::MakeUnique();
-	m_computePipelineCache = Compute::PipelineCache::MakeUnique();
-	m_pipelineLayoutCache = PipelineLayoutCache::MakeUnique();
+	m_shaderLib = ShaderLib::MakeUnique();
+	m_computePipelineLib = Compute::PipelineLib::MakeUnique();
+	m_pipelineLayoutLib = PipelineLayoutLib::MakeUnique();
 }
 
 ComputeUtil::ComputeUtil(const Device* pDevice) :
@@ -21,7 +21,7 @@ ComputeUtil::~ComputeUtil()
 }
 
 bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
-	const DescriptorTableCache::sptr& descriptorTableCache, TypedBuffer* pBuffer,
+	const DescriptorTableLib::sptr& descriptorTableLib, TypedBuffer* pBuffer,
 	vector<Resource::uptr>* pUploaders, Format format, uint32_t maxElementCount)
 {
 	const auto pDevice = pCommandList->GetDevice();
@@ -29,7 +29,7 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 	if (maxElementCount > 1024 * 1024)
 		assert(!"Error: maxElementCount should be no more than 1048576!");
 	m_safeMode = safeMode;
-	m_descriptorTableCache = descriptorTableCache;
+	m_descriptorTableLib = descriptorTableLib;
 	m_format = format;
 	m_maxElementCount = maxElementCount;
 
@@ -47,14 +47,14 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 		{
 			const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 			descriptorTable->SetDescriptors(0, 1, &pBuffer->GetUAV());
-			XUSG_X_RETURN(m_uavTables[UAV_TABLE_DATA], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+			XUSG_X_RETURN(m_uavTables[UAV_TABLE_DATA], descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get()), false);
 		}
 
 		// Append a counter UAV table
 		{
 			const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 			descriptorTable->SetDescriptors(0, 1, &m_counter->GetUAV());
-			XUSG_X_RETURN(m_uavTables[UAV_TABLE_COUNTER], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+			XUSG_X_RETURN(m_uavTables[UAV_TABLE_COUNTER], descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get()), false);
 		}
 	}
 	else
@@ -88,14 +88,14 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 		{
 			const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 			descriptorTable->SetDescriptors(0, 1, &m_testBuffer->GetUAV(), TEMPORARY_POOL);
-			XUSG_X_RETURN(m_uavTables[UAV_TABLE_DATA], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+			XUSG_X_RETURN(m_uavTables[UAV_TABLE_DATA], descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get()), false);
 		}
 
 		// Append a counter UAV table
 		{
 			const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 			descriptorTable->SetDescriptors(0, 1, &m_counter->GetUAV(), TEMPORARY_POOL);
-			XUSG_X_RETURN(m_uavTables[UAV_TABLE_COUNTER], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+			XUSG_X_RETURN(m_uavTables[UAV_TABLE_COUNTER], descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get()), false);
 		}
 
 		// Upload test data
@@ -152,22 +152,22 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 
 	// Create pipeline layout
 	const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
-	pipelineLayout->SetConstants(0, XUSG_SizeOfInUint32(uint32_t[2]), 0);
+	pipelineLayout->SetConstants(0, XUSG_UINT32_SIZE_OF(uint32_t[2]), 0);
 	pipelineLayout->SetRange(1, DescriptorType::UAV, 2, 0, 0,
 		DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
-	XUSG_X_RETURN(m_pipelineLayouts[pipelineIndex], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
+	XUSG_X_RETURN(m_pipelineLayouts[pipelineIndex], pipelineLayout->GetPipelineLayout(m_pipelineLayoutLib.get(),
 		PipelineLayoutFlag::NONE, L"PrefixSumLayout"), false);
 
 	// Create pipeline
 	if (!m_pipelines[pipelineIndex])
 	{
-		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, pipelineIndex,
+		XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, pipelineIndex,
 			safeMode ? L"CSPrefixSum1.cso" : L"CSPrefixSum.cso"), false);
 
 		const auto state = Compute::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[pipelineIndex]);
-		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, pipelineIndex));
-		XUSG_X_RETURN(m_pipelines[pipelineIndex], state->GetPipeline(m_computePipelineCache.get(),
+		state->SetShader(m_shaderLib->GetShader(Shader::Stage::CS, pipelineIndex));
+		XUSG_X_RETURN(m_pipelines[pipelineIndex], state->GetPipeline(m_computePipelineLib.get(),
 			safeMode ? L"PrefixSum1" : L"PrefixSum"), false);
 	}
 
@@ -177,18 +177,18 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
 		pipelineLayout->SetRange(0, DescriptorType::UAV, 1, 0, 0,
 			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
-		XUSG_X_RETURN(m_pipelineLayouts[pipelineIndex + 1], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
+		XUSG_X_RETURN(m_pipelineLayouts[pipelineIndex + 1], pipelineLayout->GetPipelineLayout(m_pipelineLayoutLib.get(),
 			PipelineLayoutFlag::NONE, L"PrefixSum2Layout"), false);
 
 		// Create pipeline
 		if (!m_pipelines[pipelineIndex + 1])
 		{
-			XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, pipelineIndex + 1, L"CSPrefixSum2.cso"), false);
+			XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, pipelineIndex + 1, L"CSPrefixSum2.cso"), false);
 
 			const auto state = Compute::State::MakeUnique();
 			state->SetPipelineLayout(m_pipelineLayouts[pipelineIndex + 1]);
-			state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, pipelineIndex + 1));
-			XUSG_X_RETURN(m_pipelines[pipelineIndex + 1], state->GetPipeline(m_computePipelineCache.get(), L"PrefixSum2"), false);
+			state->SetShader(m_shaderLib->GetShader(Shader::Stage::CS, pipelineIndex + 1));
+			XUSG_X_RETURN(m_pipelines[pipelineIndex + 1], state->GetPipeline(m_computePipelineLib.get(), L"PrefixSum2"), false);
 		}
 	}
 
@@ -197,8 +197,8 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 
 void ComputeUtil::SetDevice(const Device* pDevice)
 {
-	m_computePipelineCache->SetDevice(pDevice);
-	m_pipelineLayoutCache->SetDevice(pDevice);
+	m_computePipelineLib->SetDevice(pDevice);
+	m_pipelineLayoutLib->SetDevice(pDevice);
 }
 
 void ComputeUtil::PrefixSum(CommandList* pCommandList, uint32_t numElements)
@@ -209,7 +209,7 @@ void ComputeUtil::PrefixSum(CommandList* pCommandList, uint32_t numElements)
 
 	const DescriptorPool descriptorPools[] =
 	{
-		m_descriptorTableCache->GetDescriptorPool(CBV_SRV_UAV_POOL,
+		m_descriptorTableLib->GetDescriptorPool(CBV_SRV_UAV_POOL,
 			m_testBuffer ? TEMPORARY_POOL : PERMANENT_POOL),
 	};
 	pCommandList->SetDescriptorPools(static_cast<uint32_t>(size(descriptorPools)), descriptorPools);

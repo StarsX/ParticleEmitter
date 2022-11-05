@@ -57,7 +57,7 @@ protected:
 
 	XUSG::ConstantBuffer::uptr	m_cbBasePass;
 
-	XUSG::ShaderPool::uptr				m_shaderPool;
-	XUSG::Graphics::PipelineCache::uptr	m_graphicsPipelineCache;
-	XUSG::PipelineLayoutCache::uptr		m_pipelineLayoutCache;
+	XUSG::ShaderLib::uptr				m_shaderLib;
+	XUSG::Graphics::PipelineLib::uptr	m_graphicsPipelineLib;
+	XUSG::PipelineLayoutLib::uptr		m_pipelineLayoutLib;
 };

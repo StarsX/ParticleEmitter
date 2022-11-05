@@ -13,7 +13,7 @@ const uint32_t g_gridBufferSize = GRID_SIZE_SPH * GRID_SIZE_SPH * GRID_SIZE_SPH 
 
 FluidSPH::FluidSPH()
 {
-	m_shaderPool = ShaderPool::MakeUnique();
+	m_shaderLib = ShaderLib::MakeUnique();
 }
 
 FluidSPH::~FluidSPH()
@@ -21,13 +21,13 @@ FluidSPH::~FluidSPH()
 }
 
 bool FluidSPH::Init(CommandList* pCommandList, uint32_t numParticles,
-	const DescriptorTableCache::sptr& descriptorTableCache,
+	const DescriptorTableLib::sptr& descriptorTableLib,
 	vector<Resource::uptr>& uploaders, const StructuredBuffer::uptr* pParticleBuffers)
 {
 	const auto pDevice = pCommandList->GetDevice();
-	m_computePipelineCache = Compute::PipelineCache::MakeUnique(pDevice);
-	m_pipelineLayoutCache = PipelineLayoutCache::MakeUnique(pDevice);
-	m_descriptorTableCache = descriptorTableCache;
+	m_computePipelineLib = Compute::PipelineLib::MakeUnique(pDevice);
+	m_pipelineLayoutLib = PipelineLayoutLib::MakeUnique(pDevice);
+	m_descriptorTableLib = descriptorTableLib;
 	m_prefixSumUtil.SetDevice(pDevice);
 
 	m_numParticles = numParticles;
@@ -78,7 +78,7 @@ bool FluidSPH::Init(CommandList* pCommandList, uint32_t numParticles,
 
 	// Set prefix sum
 	m_prefixSumUtil.SetPrefixSum(pCommandList, g_gridBufferSize > 4096,
-		m_descriptorTableCache, m_gridBuffer.get());
+		m_descriptorTableLib, m_gridBuffer.get());
 
 	// Create pipelines
 	XUSG_N_RETURN(createPipelineLayouts(), false);
@@ -131,7 +131,7 @@ bool FluidSPH::createPipelineLayouts()
 		pipelineLayout->SetRange(0, DescriptorType::SRV, 3, 0, 0, DescriptorFlag::DESCRIPTORS_VOLATILE);
 		pipelineLayout->SetRange(1, DescriptorType::UAV, 1, 0, 0,
 			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
-		XUSG_X_RETURN(m_pipelineLayouts[REARRANGE], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
+		XUSG_X_RETURN(m_pipelineLayouts[REARRANGE], pipelineLayout->GetPipelineLayout(m_pipelineLayoutLib.get(),
 			PipelineLayoutFlag::NONE, L"RearrangementLayout"), false);
 	}
 
@@ -142,7 +142,7 @@ bool FluidSPH::createPipelineLayouts()
 		pipelineLayout->SetRange(1, DescriptorType::SRV, 2, 0, 0, DescriptorFlag::DESCRIPTORS_VOLATILE);
 		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0, 0,
 			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
-		XUSG_X_RETURN(m_pipelineLayouts[DENSITY], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
+		XUSG_X_RETURN(m_pipelineLayouts[DENSITY], pipelineLayout->GetPipelineLayout(m_pipelineLayoutLib.get(),
 			PipelineLayoutFlag::NONE, L"DensityLayout"), false);
 	}
 
@@ -153,7 +153,7 @@ bool FluidSPH::createPipelineLayouts()
 		pipelineLayout->SetRange(1, DescriptorType::SRV, 3, 0, 0, DescriptorFlag::DESCRIPTORS_VOLATILE);
 		pipelineLayout->SetRange(2, DescriptorType::UAV, 1, 0, 0,
 			DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE | DescriptorFlag::DESCRIPTORS_VOLATILE);
-		XUSG_X_RETURN(m_pipelineLayouts[FORCE], pipelineLayout->GetPipelineLayout(m_pipelineLayoutCache.get(),
+		XUSG_X_RETURN(m_pipelineLayouts[FORCE], pipelineLayout->GetPipelineLayout(m_pipelineLayoutLib.get(),
 			PipelineLayoutFlag::NONE, L"ForceLayout"), false);
 	}
 
@@ -166,32 +166,32 @@ bool FluidSPH::createPipelines()
 
 	// Rearrangement
 	{
-		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, csIndex, L"CSRearrange.cso"), false);
+		XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, L"CSRearrange.cso"), false);
 
 		const auto state = Compute::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[REARRANGE]);
-		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, csIndex++));
-		XUSG_X_RETURN(m_pipelines[REARRANGE], state->GetPipeline(m_computePipelineCache.get(), L"Rearrangement"), false);
+		state->SetShader(m_shaderLib->GetShader(Shader::Stage::CS, csIndex++));
+		XUSG_X_RETURN(m_pipelines[REARRANGE], state->GetPipeline(m_computePipelineLib.get(), L"Rearrangement"), false);
 	}
 
 	// Density
 	{
-		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, csIndex, L"CSDensitySPH.cso"), false);
+		XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, L"CSDensitySPH.cso"), false);
 
 		const auto state = Compute::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[DENSITY]);
-		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, csIndex++));
-		XUSG_X_RETURN(m_pipelines[DENSITY], state->GetPipeline(m_computePipelineCache.get(), L"Density"), false);
+		state->SetShader(m_shaderLib->GetShader(Shader::Stage::CS, csIndex++));
+		XUSG_X_RETURN(m_pipelines[DENSITY], state->GetPipeline(m_computePipelineLib.get(), L"Density"), false);
 	}
 
 	// Force
 	{
-		XUSG_N_RETURN(m_shaderPool->CreateShader(Shader::Stage::CS, csIndex, L"CSForceSPH.cso"), false);
+		XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, L"CSForceSPH.cso"), false);
 
 		const auto state = Compute::State::MakeUnique();
 		state->SetPipelineLayout(m_pipelineLayouts[FORCE]);
-		state->SetShader(m_shaderPool->GetShader(Shader::Stage::CS, csIndex++));
-		XUSG_X_RETURN(m_pipelines[FORCE], state->GetPipeline(m_computePipelineCache.get(), L"Force"), false);
+		state->SetShader(m_shaderLib->GetShader(Shader::Stage::CS, csIndex++));
+		XUSG_X_RETURN(m_pipelines[FORCE], state->GetPipeline(m_computePipelineLib.get(), L"Force"), false);
 	}
 
 	return true;
@@ -210,7 +210,7 @@ bool FluidSPH::createDescriptorTables()
 			m_forceBuffer->GetSRV()
 		};
 		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		XUSG_X_RETURN(m_uavSrvTable, descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_uavSrvTable, descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get()), false);
 	}
 
 	// Create SRV tables
@@ -223,7 +223,7 @@ bool FluidSPH::createDescriptorTables()
 			m_offsetBuffer->GetSRV()
 		};
 		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		XUSG_X_RETURN(m_srvTables[SRV_TABLE_REARRANGLE], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_srvTables[SRV_TABLE_REARRANGLE], descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get()), false);
 	}
 
 	{
@@ -235,26 +235,26 @@ bool FluidSPH::createDescriptorTables()
 			m_densityBuffer->GetSRV()
 		};
 		descriptorTable->SetDescriptors(0, static_cast<uint32_t>(size(descriptors)), descriptors);
-		XUSG_X_RETURN(m_srvTables[SRV_TABLE_SPH], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_srvTables[SRV_TABLE_SPH], descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get()), false);
 	}
 
 	// Create UAV tables
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		descriptorTable->SetDescriptors(0, 1, &m_pParticleBuffers[REARRANGED]->GetUAV());
-		XUSG_X_RETURN(m_uavTables[UAV_TABLE_PARTICLE], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_uavTables[UAV_TABLE_PARTICLE], descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get()), false);
 	}
 
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		descriptorTable->SetDescriptors(0, 1, &m_densityBuffer->GetUAV());
-		XUSG_X_RETURN(m_uavTables[UAV_TABLE_DENSITY], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_uavTables[UAV_TABLE_DENSITY], descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get()), false);
 	}
 
 	{
 		const auto descriptorTable = Util::DescriptorTable::MakeUnique();
 		descriptorTable->SetDescriptors(0, 1, &m_forceBuffer->GetUAV());
-		XUSG_X_RETURN(m_uavTables[UAV_TABLE_FORCE], descriptorTable->GetCbvSrvUavTable(m_descriptorTableCache.get()), false);
+		XUSG_X_RETURN(m_uavTables[UAV_TABLE_FORCE], descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get()), false);
 	}
 
 	return true;

@@ -16,7 +16,7 @@ namespace XUSG
 		virtual ~ComputeUtil();
 
 		bool SetPrefixSum(CommandList* pCommandList, bool safeMode,
-			const DescriptorTableCache::sptr& descriptorTableCache,
+			const DescriptorTableLib::sptr& descriptorTableLib,
 			TypedBuffer* pBuffer, std::vector<Resource::uptr>* pUploaders = nullptr,
 			Format format = Format::R32_UINT, uint32_t maxElementCount = 4096);
 
@@ -55,12 +55,12 @@ namespace XUSG
 			NUM_UAV_TABLE
 		};
 
-		Format					m_format;
+		Format m_format;
 
-		XUSG::ShaderPool::uptr				m_shaderPool;
-		XUSG::Compute::PipelineCache::uptr	m_computePipelineCache;
-		XUSG::PipelineLayoutCache::uptr		m_pipelineLayoutCache;
-		XUSG::DescriptorTableCache::sptr	m_descriptorTableCache;
+		XUSG::ShaderLib::uptr				m_shaderLib;
+		XUSG::Compute::PipelineLib::uptr	m_computePipelineLib;
+		XUSG::PipelineLayoutLib::uptr		m_pipelineLayoutLib;
+		XUSG::DescriptorTableLib::sptr		m_descriptorTableLib;
 
 		PipelineLayout			m_pipelineLayouts[NUM_PIPELINE];
 		Pipeline				m_pipelines[NUM_PIPELINE];

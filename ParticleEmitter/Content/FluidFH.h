@@ -13,7 +13,7 @@ public:
 	virtual ~FluidFH();
 
 	bool Init(XUSG::CommandList* pCommandList, uint32_t numParticles,
-		const XUSG::DescriptorTableCache::sptr& descriptorTableCache,
+		const XUSG::DescriptorTableLib::sptr& descriptorTableLib,
 		std::vector<XUSG::Resource::uptr>& uploaders, XUSG::Format rtFormat);
 
 	void UpdateFrame();
@@ -54,11 +54,11 @@ protected:
 	bool createPipelines(XUSG::Format rtFormat);
 	bool createDescriptorTables();
 
-	XUSG::ShaderPool::uptr				m_shaderPool;
-	XUSG::Graphics::PipelineCache::uptr	m_graphicsPipelineCache;
-	XUSG::Compute::PipelineCache::uptr	m_computePipelineCache;
-	XUSG::PipelineLayoutCache::uptr		m_pipelineLayoutCache;
-	XUSG::DescriptorTableCache::sptr	m_descriptorTableCache;
+	XUSG::ShaderLib::uptr				m_shaderLib;
+	XUSG::Graphics::PipelineLib::uptr	m_graphicsPipelineLib;
+	XUSG::Compute::PipelineLib::uptr	m_computePipelineLib;
+	XUSG::PipelineLayoutLib::uptr		m_pipelineLayoutLib;
+	XUSG::DescriptorTableLib::sptr		m_descriptorTableLib;
 
 	XUSG::PipelineLayout	m_pipelineLayouts[NUM_PIPELINE];
 	XUSG::Pipeline			m_pipelines[NUM_PIPELINE];

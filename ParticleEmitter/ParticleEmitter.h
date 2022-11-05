@@ -59,7 +59,7 @@ private:
 	static const uint8_t FrameCount = Emitter::FrameCount;
 	static_assert(FrameCount == Renderer::FrameCount, "ParticleEmitter::FrameCount should be equal to Renderer::FrameCount");
 
-	std::shared_ptr<XUSG::DescriptorTableCache> m_descriptorTableCache;
+	XUSG::DescriptorTableLib::sptr	m_descriptorTableLib;
 
 	XUSG::SwapChain::uptr			m_swapChain;
 	XUSG::CommandAllocator::uptr	m_commandAllocators[FrameCount];

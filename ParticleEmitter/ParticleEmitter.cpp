@@ -133,7 +133,7 @@ void ParticleEmitter::LoadPipeline()
 
 	m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
 
-	m_descriptorTableCache = DescriptorTableCache::MakeShared(m_device.get(), L"DescriptorTableCache");
+	m_descriptorTableLib = DescriptorTableLib::MakeShared(m_device.get(), L"DescriptorTableLib");
 
 	// Create frame resources.
 	// Create a RTV and a command allocator for each frame.
@@ -176,22 +176,22 @@ void ParticleEmitter::LoadAssets()
 	// Create emitter
 	const auto numParticles = 1u << 16;
 	m_emitter = make_unique<Emitter>();
-	XUSG_N_RETURN(m_emitter->Init(pCommandList, numParticles, m_descriptorTableCache, uploaders,
+	XUSG_N_RETURN(m_emitter->Init(pCommandList, numParticles, m_descriptorTableLib, uploaders,
 		m_renderer->GetInputLayout(), Format::B8G8R8A8_UNORM, Format::D24_UNORM_S8_UINT), ThrowIfFailed(E_FAIL));
 
 	// Create SPH fluid simulator
 	m_fluidSPH = make_unique<FluidSPH>();
-	XUSG_N_RETURN(m_fluidSPH->Init(pCommandList, numParticles, m_descriptorTableCache,
+	XUSG_N_RETURN(m_fluidSPH->Init(pCommandList, numParticles, m_descriptorTableLib,
 		uploaders, m_emitter->GetParticleBuffers()), ThrowIfFailed(E_FAIL));
 
 	// Create fast hybrid fluid simulator
 	m_fluidFH = make_unique<FluidFH>();
-	XUSG_N_RETURN(m_fluidFH->Init(pCommandList, numParticles, m_descriptorTableCache,
+	XUSG_N_RETURN(m_fluidFH->Init(pCommandList, numParticles, m_descriptorTableLib,
 		uploaders, Format::B8G8R8A8_UNORM), ThrowIfFailed(E_FAIL));
 
 #if defined(_DEBUG)
 	ComputeUtil prefixSumUtil(m_device);
-	prefixSumUtil.SetPrefixSum(pCommandList, true, m_descriptorTableCache,
+	prefixSumUtil.SetPrefixSum(pCommandList, true, m_descriptorTableLib,
 		nullptr, &uploaders, Format::R32_UINT, 1024 * 5 + 387);
 #endif
 
@@ -428,7 +428,7 @@ void ParticleEmitter::PopulateCommandList()
 
 	// Record commands.
 	// Bind the descriptor pools.
-	const auto descriptorPool = m_descriptorTableCache->GetDescriptorPool(CBV_SRV_UAV_POOL);
+	const auto descriptorPool = m_descriptorTableLib->GetDescriptorPool(CBV_SRV_UAV_POOL);
 	pCommandList->SetDescriptorPools(1, &descriptorPool);
 
 	ResourceBarrier barriers[1];

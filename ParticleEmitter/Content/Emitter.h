@@ -13,7 +13,7 @@ public:
 	virtual ~Emitter();
 
 	bool Init(XUSG::CommandList* pCommandList, uint32_t numParticles,
-		const XUSG::DescriptorTableCache::sptr& descriptorTableCache,
+		const XUSG::DescriptorTableLib::sptr& descriptorTableLib,
 		std::vector<XUSG::Resource::uptr> &uploaders, const XUSG::InputLayout* pInputLayout,
 		XUSG::Format rtFormat, XUSG::Format dsFormat);
 	bool SetEmitterCount(XUSG::CommandList* pCommandList, XUSG::RawBuffer* pCounter,
@@ -77,11 +77,11 @@ protected:
 	void distribute(const XUSG::CommandList* pCommandList, const XUSG::VertexBuffer* pVB,
 		const XUSG::IndexBuffer* pIB, uint32_t numIndices, float density, float scale);
 
-	XUSG::ShaderPool::uptr				m_shaderPool;
-	XUSG::Graphics::PipelineCache::uptr	m_graphicsPipelineCache;
-	XUSG::Compute::PipelineCache::uptr	m_computePipelineCache;
-	XUSG::PipelineLayoutCache::uptr		m_pipelineLayoutCache;
-	XUSG::DescriptorTableCache::sptr	m_descriptorTableCache;
+	XUSG::ShaderLib::uptr				m_shaderLib;
+	XUSG::Graphics::PipelineLib::uptr	m_graphicsPipelineLib;
+	XUSG::Compute::PipelineLib::uptr	m_computePipelineLib;
+	XUSG::PipelineLayoutLib::uptr		m_pipelineLayoutLib;
+	XUSG::DescriptorTableLib::sptr		m_descriptorTableLib;
 
 	XUSG::PipelineLayout	m_pipelineLayouts[NUM_PIPELINE];
 	XUSG::Pipeline			m_pipelines[NUM_PIPELINE];
