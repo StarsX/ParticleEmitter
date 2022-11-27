@@ -168,9 +168,9 @@ void Emitter::Distribute(CommandList* pCommandList, const RawBuffer* pCounter,
 {
 	m_srvVertexBuffer = pVB->GetSRV();
 
-	// Bind the descriptor pool.
-	const auto descriptorPool = m_descriptorTableLib->GetDescriptorPool(CBV_SRV_UAV_POOL);
-	pCommandList->SetDescriptorPools(1, &descriptorPool);
+	// Bind the descriptor heap.
+	const auto descriptorHeap = m_descriptorTableLib->GetDescriptorHeap(CBV_SRV_UAV_HEAP);
+	pCommandList->SetDescriptorHeaps(1, &descriptorHeap);
 
 	// Set barriers
 	ResourceBarrier barriers[2];

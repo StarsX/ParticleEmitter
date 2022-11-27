@@ -87,14 +87,14 @@ bool ComputeUtil::SetPrefixSum(CommandList* pCommandList, bool safeMode,
 		// Create a UAV table
 		{
 			const auto descriptorTable = Util::DescriptorTable::MakeUnique();
-			descriptorTable->SetDescriptors(0, 1, &m_testBuffer->GetUAV(), TEMPORARY_POOL);
+			descriptorTable->SetDescriptors(0, 1, &m_testBuffer->GetUAV(), TEMPORARY_HEAP);
 			XUSG_X_RETURN(m_uavTables[UAV_TABLE_DATA], descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get()), false);
 		}
 
 		// Append a counter UAV table
 		{
 			const auto descriptorTable = Util::DescriptorTable::MakeUnique();
-			descriptorTable->SetDescriptors(0, 1, &m_counter->GetUAV(), TEMPORARY_POOL);
+			descriptorTable->SetDescriptors(0, 1, &m_counter->GetUAV(), TEMPORARY_HEAP);
 			XUSG_X_RETURN(m_uavTables[UAV_TABLE_COUNTER], descriptorTable->GetCbvSrvUavTable(m_descriptorTableLib.get()), false);
 		}
 
@@ -207,12 +207,9 @@ void ComputeUtil::PrefixSum(CommandList* pCommandList, uint32_t numElements)
 	if (m_testBuffer && numElements > m_maxElementCount)
 			assert(!"Error: numElements is greater than maxElementCount!");
 
-	const DescriptorPool descriptorPools[] =
-	{
-		m_descriptorTableLib->GetDescriptorPool(CBV_SRV_UAV_POOL,
-			m_testBuffer ? TEMPORARY_POOL : PERMANENT_POOL),
-	};
-	pCommandList->SetDescriptorPools(static_cast<uint32_t>(size(descriptorPools)), descriptorPools);
+	const auto descriptorHeap = m_descriptorTableLib->GetDescriptorHeap(CBV_SRV_UAV_HEAP,
+			m_testBuffer ? TEMPORARY_HEAP : PERMANENT_HEAP);
+	pCommandList->SetDescriptorHeaps(1, &descriptorHeap);
 
 	// Clear counter
 	const uint32_t clear[4] = {};

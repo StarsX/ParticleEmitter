@@ -41,10 +41,10 @@ namespace XUSG
 			NUM_PIPELINE
 		};
 
-		enum DescriptorPoolIndex : uint8_t
+		enum DescriptorHeapIndex : uint8_t
 		{
-			PERMANENT_POOL,
-			TEMPORARY_POOL
+			PERMANENT_HEAP,
+			TEMPORARY_HEAP
 		};
 
 		enum UAVTable : uint8_t
