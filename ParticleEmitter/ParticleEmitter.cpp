@@ -10,6 +10,7 @@
 //*********************************************************
 
 #include "ParticleEmitter.h"
+#include "stb_image_write.h"
 
 using namespace std;
 using namespace XUSG;
@@ -25,6 +26,8 @@ const wchar_t* ParticleEmitter::SimulationMethodDescs[] =
 const float g_FOVAngleY = XM_PIDIV4;
 const float g_zNear = 1.0f;
 const float g_zFar = 1000.0f;
+
+const auto g_backBufferFormat = Format::R8G8B8A8_UNORM;
 
 ParticleEmitter::ParticleEmitter(uint32_t width, uint32_t height, std::wstring name) :
 	DXFramework(width, height, name),
@@ -111,7 +114,7 @@ void ParticleEmitter::LoadPipeline()
 		{
 			// Can assume “all-or-nothing” subset is supported (e.g. R32G32B32A32_FLOAT)
 			// Cannot assume other formats are supported, so we check:
-			D3D12_FEATURE_DATA_FORMAT_SUPPORT formatSupport = { DXGI_FORMAT_B8G8R8A8_UNORM, D3D12_FORMAT_SUPPORT1_NONE, D3D12_FORMAT_SUPPORT2_NONE };
+			D3D12_FEATURE_DATA_FORMAT_SUPPORT formatSupport = { DXGI_FORMAT_R8G8B8A8_UNORM, D3D12_FORMAT_SUPPORT1_NONE, D3D12_FORMAT_SUPPORT2_NONE };
 			hr = pDevice->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &formatSupport, sizeof(formatSupport));
 			if (SUCCEEDED(hr) && (formatSupport.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_LOAD))
 				m_typedUAV = true;
@@ -126,7 +129,7 @@ void ParticleEmitter::LoadPipeline()
 	// Describe and create the swap chain.
 	m_swapChain = SwapChain::MakeUnique();
 	XUSG_N_RETURN(m_swapChain->Create(factory.get(), Win32Application::GetHwnd(), m_commandQueue->GetHandle(),
-		FrameCount, m_width, m_height, Format::B8G8R8A8_UNORM, SwapChainFlag::ALLOW_TEARING), ThrowIfFailed(E_FAIL));
+		FrameCount, m_width, m_height, g_backBufferFormat, SwapChainFlag::ALLOW_TEARING), ThrowIfFailed(E_FAIL));
 
 	// This sample does not support fullscreen transitions.
 	ThrowIfFailed(factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
@@ -171,13 +174,13 @@ void ParticleEmitter::LoadAssets()
 	// Create renderer
 	m_renderer = make_unique<Renderer>();
 	XUSG_N_RETURN(m_renderer->Init(pCommandList, m_width, m_height, uploaders, m_meshFileName.c_str(),
-		Format::B8G8R8A8_UNORM, Format::D24_UNORM_S8_UINT), ThrowIfFailed(E_FAIL));
+		g_backBufferFormat, Format::D24_UNORM_S8_UINT), ThrowIfFailed(E_FAIL));
 
 	// Create emitter
 	const auto numParticles = 1u << 16;
 	m_emitter = make_unique<Emitter>();
 	XUSG_N_RETURN(m_emitter->Init(pCommandList, numParticles, m_descriptorTableLib, uploaders,
-		m_renderer->GetInputLayout(), Format::B8G8R8A8_UNORM, Format::D24_UNORM_S8_UINT), ThrowIfFailed(E_FAIL));
+		m_renderer->GetInputLayout(), g_backBufferFormat, Format::D24_UNORM_S8_UINT), ThrowIfFailed(E_FAIL));
 
 	// Create SPH fluid simulator
 	m_fluidSPH = make_unique<FluidSPH>();
@@ -187,7 +190,7 @@ void ParticleEmitter::LoadAssets()
 	// Create fast hybrid fluid simulator
 	m_fluidFH = make_unique<FluidFH>();
 	XUSG_N_RETURN(m_fluidFH->Init(pCommandList, numParticles, m_descriptorTableLib,
-		uploaders, Format::B8G8R8A8_UNORM), ThrowIfFailed(E_FAIL));
+		uploaders, g_backBufferFormat), ThrowIfFailed(E_FAIL));
 
 #if defined(_DEBUG)
 	ComputeUtil prefixSumUtil(m_device);
@@ -321,6 +324,9 @@ void ParticleEmitter::OnKeyUp(uint8_t key)
 	case VK_F1:
 		m_showFPS = !m_showFPS;
 		break;
+	case VK_F11:
+		m_screenShot = 1;
+		break;
 	case 'S':
 		m_simulationMethod = static_cast<SimulationMethod>((m_simulationMethod + 1) % NUM_SIMULATION_METHOD);
 		break;
@@ -432,37 +438,47 @@ void ParticleEmitter::PopulateCommandList()
 	const auto descriptorHeap = m_descriptorTableLib->GetDescriptorHeap(CBV_SRV_UAV_HEAP);
 	pCommandList->SetDescriptorHeaps(1, &descriptorHeap);
 
+	const auto pRenderTarget = m_renderTargets[m_frameIndex].get();
+
 	ResourceBarrier barriers[1];
-	auto numBarriers = m_renderTargets[m_frameIndex]->SetBarrier(barriers, ResourceState::RENDER_TARGET);
+	auto numBarriers = pRenderTarget->SetBarrier(barriers, ResourceState::RENDER_TARGET);
 	pCommandList->Barrier(numBarriers, barriers);
 
 	// Clear render target
 	const float clearColor[4] = { 0.2f, 0.2f, 0.2f, 0.0f };
-	pCommandList->ClearRenderTargetView(m_renderTargets[m_frameIndex]->GetRTV(), clearColor);
+	pCommandList->ClearRenderTargetView(pRenderTarget->GetRTV(), clearColor);
 	pCommandList->ClearDepthStencilView(m_depth->GetDSV(), ClearFlag::DEPTH, 1.0f);
 	
-	m_renderer->Render(pCommandList, m_frameIndex, m_renderTargets[m_frameIndex]->GetRTV(), m_depth->GetDSV());
+	m_renderer->Render(pCommandList, m_frameIndex, pRenderTarget->GetRTV(), m_depth->GetDSV());
 
 	// Fluid simulation
 	switch (m_simulationMethod)
 	{
 	case SPH_SIMULATION:
-		m_emitter->RenderSPH(pCommandList, m_frameIndex, m_renderTargets[m_frameIndex]->GetRTV(),
+		m_emitter->RenderSPH(pCommandList, m_frameIndex, pRenderTarget->GetRTV(),
 			&m_depth->GetDSV(), m_fluidSPH->GetDescriptorTable());
 		m_fluidSPH->Simulate(pCommandList);
 		break;
 	case FAST_HYBRID_FLUID:
-		m_emitter->RenderFHF(pCommandList, m_frameIndex, m_renderTargets[m_frameIndex]->GetRTV(),
+		m_emitter->RenderFHF(pCommandList, m_frameIndex, pRenderTarget->GetRTV(),
 			&m_depth->GetDSV(), m_fluidFH->GetDescriptorTable());
 		m_fluidFH->Simulate(pCommandList);
 		break;
 	default:
-		m_emitter->Render(pCommandList, m_frameIndex, m_renderTargets[m_frameIndex]->GetRTV(), &m_depth->GetDSV());
+		m_emitter->Render(pCommandList, m_frameIndex, pRenderTarget->GetRTV(), &m_depth->GetDSV());
 	}
 
 	// Indicate that the back buffer will now be used to present.
-	numBarriers = m_renderTargets[m_frameIndex]->SetBarrier(barriers, ResourceState::PRESENT);
+	numBarriers = pRenderTarget->SetBarrier(barriers, ResourceState::PRESENT);
 	pCommandList->Barrier(numBarriers, barriers);
+
+	// Screen-shot helper
+	if (m_screenShot == 1)
+	{
+		if (!m_readBuffer) m_readBuffer = Buffer::MakeUnique();
+		pRenderTarget->ReadBack(pCommandList, m_readBuffer.get());
+		m_screenShot = 2;
+	}
 
 	XUSG_N_RETURN(pCommandList->Close(), ThrowIfFailed(E_FAIL));
 }
@@ -500,6 +516,37 @@ void ParticleEmitter::MoveToNextFrame()
 
 	// Set the fence value for the next frame.
 	m_fenceValues[m_frameIndex] = currentFenceValue + 1;
+
+	// Screen-shot helper
+	if (m_screenShot)
+	{
+		if (m_screenShot > FrameCount)
+		{
+			char timeStr[15];
+			tm dateTime;
+			const auto now = time(nullptr);
+			if (!localtime_s(&dateTime, &now) && strftime(timeStr, sizeof(timeStr), "%Y%m%d%H%M%S", &dateTime))
+				SaveImage((string("ParticleEmitter_") + timeStr + ".png").c_str(), m_readBuffer.get(), m_width, m_height);
+			m_screenShot = 0;
+		}
+		else ++m_screenShot;
+	}
+}
+
+void ParticleEmitter::SaveImage(char const* fileName, Buffer* imageBuffer, uint32_t w, uint32_t h, uint8_t comp)
+{
+	assert(comp == 3 || comp == 4);
+	const auto pData = static_cast<uint8_t*>(imageBuffer->Map());
+
+	//stbi_write_png_compression_level = 1024;
+	vector<uint8_t> imageData(comp * w * h);
+	for (auto i = 0u; i < w * h; ++i)
+		for (uint8_t j = 0; j < comp; ++j)
+			imageData[comp * i + j] = pData[4 * i + j];
+
+	stbi_write_png(fileName, w, h, comp, imageData.data(), 0);
+
+	m_readBuffer->Unmap();
 }
 
 double ParticleEmitter::CalculateFrameStats(float* pTimeStep)
@@ -525,6 +572,8 @@ double ParticleEmitter::CalculateFrameStats(float* pTimeStep)
 		if (m_showFPS) windowText << setprecision(2) << fixed << fps;
 		else windowText << L"[F1]";
 		windowText << L"    [S] " << SimulationMethodDescs[m_simulationMethod];
+		windowText << L"    [F11] screen shot";
+
 		SetCustomWindowText(windowText.str().c_str());
 	}
 
