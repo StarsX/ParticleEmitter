@@ -79,12 +79,7 @@ private:
 	XMFLOAT4X4	m_view;
 	XMFLOAT3	m_focusPt;
 	XMFLOAT3	m_eyePt;
-
 	bool		m_typedUAV;
-
-	// Screen-shot helper
-	XUSG::Buffer::uptr	m_readBuffer;
-	uint32_t			m_rowPitch;
 
 	// Synchronization objects.
 	uint32_t	m_frameIndex;
@@ -107,8 +102,10 @@ private:
 	std::string m_meshFileName;
 	XMFLOAT4 m_meshPosScale;
 
-	// Screen-shot state
-	uint8_t m_screenShot;
+	// Screen-shot helpers and state
+	XUSG::Buffer::uptr	m_readBuffer;
+	uint32_t			m_rowPitch;
+	uint8_t				m_screenShot;
 
 	void LoadPipeline();
 	void LoadAssets();
