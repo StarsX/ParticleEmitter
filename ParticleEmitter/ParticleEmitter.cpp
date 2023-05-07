@@ -534,14 +534,14 @@ void ParticleEmitter::MoveToNextFrame()
 	}
 }
 
-void ParticleEmitter::SaveImage(char const* fileName, Buffer* imageBuffer, uint32_t w, uint32_t h, uint32_t rowPitch, uint8_t comp)
+void ParticleEmitter::SaveImage(char const* fileName, Buffer* pImageBuffer, uint32_t w, uint32_t h, uint32_t rowPitch, uint8_t comp)
 {
 	assert(comp == 3 || comp == 4);
-	const auto pData = static_cast<uint8_t*>(imageBuffer->Map(nullptr));
+	const auto pData = static_cast<const uint8_t*>(pImageBuffer->Map(nullptr));
 
 	//stbi_write_png_compression_level = 1024;
 	vector<uint8_t> imageData(comp * w * h);
-	const auto sw = rowPitch / 4;
+	const auto sw = rowPitch / 4; // Byte to pixel
 	for (auto i = 0u; i < h; ++i)
 		for (auto j = 0u; j < w; ++j)
 		{
@@ -553,7 +553,7 @@ void ParticleEmitter::SaveImage(char const* fileName, Buffer* imageBuffer, uint3
 
 	stbi_write_png(fileName, w, h, comp, imageData.data(), 0);
 
-	m_readBuffer->Unmap();
+	pImageBuffer->Unmap();
 }
 
 double ParticleEmitter::CalculateFrameStats(float* pTimeStep)
