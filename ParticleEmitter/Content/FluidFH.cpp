@@ -131,14 +131,14 @@ bool FluidFH::createPipelineLayouts()
 			PipelineLayoutFlag::NONE, L"TransferFHFLayout"), false);
 	}
 
-	// Resampling
+	// Blit 3D
 	{
 		const auto pipelineLayout = Util::PipelineLayout::MakeUnique();
 		pipelineLayout->SetRange(0, DescriptorType::UAV, 1, 0, 0, DescriptorFlag::DATA_STATIC_WHILE_SET_AT_EXECUTE);
 		pipelineLayout->SetRange(0, DescriptorType::SRV, 1, 0);
 		pipelineLayout->SetRange(1, DescriptorType::SAMPLER, 1, 0);
-		XUSG_X_RETURN(m_pipelineLayouts[RESAMPLE], pipelineLayout->GetPipelineLayout(m_pipelineLayoutLib.get(),
-			PipelineLayoutFlag::NONE, L"ResamplingLayout"), false);
+		XUSG_X_RETURN(m_pipelineLayouts[BLIT_3D], pipelineLayout->GetPipelineLayout(m_pipelineLayoutLib.get(),
+			PipelineLayoutFlag::NONE, L"Blit3DLayout"), false);
 	}
 
 	return true;
@@ -158,14 +158,14 @@ bool FluidFH::createPipelines(Format rtFormat)
 		XUSG_X_RETURN(m_pipelines[TRANSFER_FHF], state->GetPipeline(m_computePipelineLib.get(), L"TransferFHF"), false);
 	}
 
-	// Resampling
+	// Blit 3D
 	{
-		XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, L"CSResample.cso"), false);
+		XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, L"CSBlit3D.cso"), false);
 
 		const auto state = Compute::State::MakeUnique();
-		state->SetPipelineLayout(m_pipelineLayouts[RESAMPLE]);
+		state->SetPipelineLayout(m_pipelineLayouts[BLIT_3D]);
 		state->SetShader(m_shaderLib->GetShader(Shader::Stage::CS, csIndex++));
-		XUSG_X_RETURN(m_pipelines[RESAMPLE], state->GetPipeline(m_computePipelineLib.get(), L"Resampling"), false);
+		XUSG_X_RETURN(m_pipelines[BLIT_3D], state->GetPipeline(m_computePipelineLib.get(), L"Blit3D"), false);
 	}
 
 	return true;
