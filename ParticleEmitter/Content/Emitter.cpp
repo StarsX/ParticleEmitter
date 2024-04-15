@@ -33,7 +33,7 @@ struct CBPerObject
 };
 
 Emitter::Emitter() :
-	m_srvTable(nullptr)
+	m_srvTable(XUSG_NULL)
 {
 	m_shaderLib = ShaderLib::MakeUnique();
 }
