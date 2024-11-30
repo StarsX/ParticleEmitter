@@ -47,6 +47,13 @@ public:
 	virtual void ParseCommandLineArgs(wchar_t* argv[], int argc);
 
 private:
+	enum DeviceType : uint8_t
+	{
+		DEVICE_DISCRETE,
+		DEVICE_UMA,
+		DEVICE_WARP
+	};
+
 	enum SimulationMethod : uint8_t
 	{
 		NO_SIMULATION,
@@ -88,11 +95,11 @@ private:
 	uint64_t	m_fenceValues[FrameCount];
 
 	// Application state
-	bool		m_showFPS;
-	bool		m_isPaused;
+	DeviceType	m_deviceType;
 	StepTimer	m_timer;
 	SimulationMethod m_simulationMethod;
-	std::wstring m_simulationMethodDesc;
+	bool		m_showFPS;
+	bool		m_isPaused;
 
 	// User camera interactions
 	bool m_tracking;
